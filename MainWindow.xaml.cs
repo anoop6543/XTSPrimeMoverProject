@@ -100,16 +100,16 @@ namespace XTSPrimeMoverProject
                 return 0.0;
             }
 
-            const double center = 110;
-            const double radius = 78;
+            const double center = 60;
+            const double radius = 42;
             double angleRadians = ((360.0 * stationIndex / stationCount) - 90.0) * Math.PI / 180.0;
 
             if (string.Equals(parameter?.ToString(), "X", StringComparison.OrdinalIgnoreCase))
             {
-                return center + radius * Math.Cos(angleRadians) - 18;
+                return center + radius * Math.Cos(angleRadians) - 7;
             }
 
-            return center + radius * Math.Sin(angleRadians) - 18;
+            return center + radius * Math.Sin(angleRadians) - 7;
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)

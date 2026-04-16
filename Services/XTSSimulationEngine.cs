@@ -12,6 +12,9 @@ namespace XTSPrimeMoverProject.Services
         private readonly Random _random;
         private readonly SimulationDataLogger _dataLogger;
         private readonly Dictionary<Guid, int> _partHistoryLogIndex;
+        private readonly Dictionary<int, FbXtsMoverAxis> _moverAxes;
+        private readonly Dictionary<int, FbMachineCycle> _machineCycles;
+        private readonly Dictionary<int, bool> _machineAlarmStates;
 
         private DateTime _lastUpdate;
         private readonly double[] _machineLoadAngles = { 45, 135, 225, 315 };
@@ -65,6 +68,9 @@ namespace XTSPrimeMoverProject.Services
             _random = new Random();
             _dataLogger = new SimulationDataLogger();
             _partHistoryLogIndex = new Dictionary<Guid, int>();
+            _moverAxes = new Dictionary<int, FbXtsMoverAxis>();
+            _machineCycles = new Dictionary<int, FbMachineCycle>();
+            _machineAlarmStates = new Dictionary<int, bool>();
 
             InitializeSystem();
 
@@ -80,6 +86,12 @@ namespace XTSPrimeMoverProject.Services
                 Movers.Add(new Mover(i));
             }
 
+            _moverAxes.Clear();
+            foreach (var mover in Movers)
+            {
+                _moverAxes[mover.MoverId] = new FbXtsMoverAxis();
+            }
+
             Machines = new List<Machine>
             {
                 new Machine(0, "Laser Welder", MachineType.LaserWelding, _machineLoadAngles[0]),
@@ -87,6 +99,14 @@ namespace XTSPrimeMoverProject.Services
                 new Machine(2, "Inspector", MachineType.QualityInspection, _machineLoadAngles[2]),
                 new Machine(3, "Tester", MachineType.FunctionalTesting, _machineLoadAngles[3])
             };
+
+            _machineCycles.Clear();
+            _machineAlarmStates.Clear();
+            foreach (var machine in Machines)
+            {
+                _machineCycles[machine.MachineId] = new FbMachineCycle();
+                _machineAlarmStates[machine.MachineId] = false;
+            }
 
             Robots = new List<Robot>();
             for (int i = 0; i < 4; i++)
@@ -165,11 +185,6 @@ namespace XTSPrimeMoverProject.Services
         {
             foreach (var mover in Movers)
             {
-                if (mover.State == MoverState.Moving || mover.State == MoverState.Loaded)
-                {
-                    mover.UpdatePosition(deltaTime);
-                }
-
                 int matchedStation = -1;
                 for (int i = 0; i < _machineLoadAngles.Length; i++)
                 {
@@ -179,6 +194,8 @@ namespace XTSPrimeMoverProject.Services
                         break;
                     }
                 }
+
+                bool holdAtStation = false;
 
                 if (matchedStation == -1)
                 {
@@ -192,26 +209,27 @@ namespace XTSPrimeMoverProject.Services
                         mover.State = MoverState.Loaded;
                         mover.TargetStation = -1;
                     }
-
-                    continue;
                 }
-
-                if (mover.CurrentPart == null)
+                else if (mover.CurrentPart == null)
                 {
                     mover.State = MoverState.AtUnloadStation;
                     mover.TargetStation = matchedStation;
+                    holdAtStation = true;
                 }
                 else if (mover.CurrentPart.NextMachineIndex == matchedStation)
                 {
                     mover.State = MoverState.AtLoadStation;
                     mover.TargetStation = matchedStation;
                     mover.CurrentPart.CurrentLocation = $"Mover-{mover.MoverId} at M{matchedStation}";
+                    holdAtStation = true;
                 }
                 else
                 {
                     mover.State = MoverState.Loaded;
                     mover.TargetStation = -1;
                 }
+
+                _moverAxes[mover.MoverId].Cycle(mover, deltaTime, IsRunning, holdAtStation);
             }
         }
 
@@ -227,7 +245,23 @@ namespace XTSPrimeMoverProject.Services
         {
             foreach (var machine in Machines)
             {
-                machine.Update(deltaTime);
+                var cycleFb = _machineCycles[machine.MachineId];
+                cycleFb.Enable = IsRunning;
+                cycleFb.InterlockPermit = machine.IsOperational;
+                cycleFb.ResetAlarms = !IsRunning;
+                cycleFb.Cycle(machine, deltaTime);
+
+                bool wasAlarm = _machineAlarmStates[machine.MachineId];
+                if (cycleFb.AlarmActive && !wasAlarm)
+                {
+                    _dataLogger.LogAlarm("Warning", $"Machine{machine.MachineId}", cycleFb.AlarmText, true);
+                }
+                else if (!cycleFb.AlarmActive && wasAlarm)
+                {
+                    _dataLogger.LogAlarm("Info", $"Machine{machine.MachineId}", "Machine alarm reset", false);
+                }
+
+                _machineAlarmStates[machine.MachineId] = cycleFb.AlarmActive;
             }
         }
 

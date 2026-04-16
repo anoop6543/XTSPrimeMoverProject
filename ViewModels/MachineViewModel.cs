@@ -27,6 +27,11 @@ namespace XTSPrimeMoverProject.ViewModels
             : "-";
         public int PartsEnteredCount => _machine.PartsEnteredCount;
         public int PartsExitedCount => _machine.PartsExitedCount;
+        public string SequencerState => _machine.SequencerState.ToString();
+        public bool IsIndexing => _machine.IsIndexing;
+        public bool FaultActive => _machine.FaultActive;
+        public string FaultMessage => string.IsNullOrWhiteSpace(_machine.FaultMessage) ? "-" : _machine.FaultMessage;
+        public double RotaryAngle => _machine.RotaryAngle;
 
         public ObservableCollection<StationViewModel> Stations { get; }
 
@@ -50,6 +55,11 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(CurrentPartId));
             OnPropertyChanged(nameof(PartsEnteredCount));
             OnPropertyChanged(nameof(PartsExitedCount));
+            OnPropertyChanged(nameof(SequencerState));
+            OnPropertyChanged(nameof(IsIndexing));
+            OnPropertyChanged(nameof(FaultActive));
+            OnPropertyChanged(nameof(FaultMessage));
+            OnPropertyChanged(nameof(RotaryAngle));
 
             foreach (var station in Stations)
             {

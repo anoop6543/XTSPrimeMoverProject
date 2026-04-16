@@ -11,6 +11,15 @@ namespace XTSPrimeMoverProject.Models
         FunctionalTesting
     }
 
+    public enum PlcSequencerState
+    {
+        Init,
+        Ready,
+        Run,
+        Fault,
+        Reset
+    }
+
     public class Machine
     {
         public int MachineId { get; set; }
@@ -22,6 +31,11 @@ namespace XTSPrimeMoverProject.Models
         public bool IsOperational { get; set; }
         public int PartsEnteredCount { get; set; }
         public int PartsExitedCount { get; set; }
+        public PlcSequencerState SequencerState { get; set; }
+        public bool IsIndexing { get; set; }
+        public bool FaultActive { get; set; }
+        public string FaultMessage { get; set; }
+        public double RotaryAngle { get; set; }
 
         public Machine(int id, string name, MachineType type, double loadAngle)
         {
@@ -34,6 +48,11 @@ namespace XTSPrimeMoverProject.Models
             IsOperational = true;
             PartsEnteredCount = 0;
             PartsExitedCount = 0;
+            SequencerState = PlcSequencerState.Init;
+            IsIndexing = false;
+            FaultActive = false;
+            FaultMessage = string.Empty;
+            RotaryAngle = 0;
 
             InitializeStations();
         }
