@@ -20,6 +20,8 @@ namespace XTSPrimeMoverProject.Models
         public int CurrentStationIndex { get; set; }
         public double LoadAngle { get; set; }
         public bool IsOperational { get; set; }
+        public int PartsEnteredCount { get; set; }
+        public int PartsExitedCount { get; set; }
 
         public Machine(int id, string name, MachineType type, double loadAngle)
         {
@@ -30,6 +32,8 @@ namespace XTSPrimeMoverProject.Models
             Stations = new List<Station>();
             CurrentStationIndex = 0;
             IsOperational = true;
+            PartsEnteredCount = 0;
+            PartsExitedCount = 0;
 
             InitializeStations();
         }
@@ -83,12 +87,18 @@ namespace XTSPrimeMoverProject.Models
             return IsOperational && (Stations.Count == 0 || Stations[0].Status == StationStatus.Idle);
         }
 
+        public bool HasCompletedPartReady()
+        {
+            return CurrentStationIndex == Stations.Count - 1 && Stations[CurrentStationIndex].Status == StationStatus.Complete;
+        }
+
         public void LoadPart(Part part)
         {
             if (Stations.Count > 0)
             {
                 Stations[0].StartProcessing(part);
                 CurrentStationIndex = 0;
+                PartsEnteredCount++;
             }
         }
 
@@ -121,6 +131,7 @@ namespace XTSPrimeMoverProject.Models
         {
             if (CurrentStationIndex == Stations.Count - 1)
             {
+                PartsExitedCount++;
                 return Stations[CurrentStationIndex].CompletePart();
             }
             return null;

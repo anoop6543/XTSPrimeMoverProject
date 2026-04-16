@@ -14,6 +14,7 @@ namespace XTSPrimeMoverProject.ViewModels
         public bool HasPart => _robot.HeldPart != null;
         public int AssignedMachine => _robot.AssignedMachineId;
         public double Progress => (_robot.ActionProgress / _robot.ActionTime) * 100;
+        public string HeldTrackingNumber => _robot.HeldPart?.TrackingNumber ?? "-";
 
         public RobotViewModel(Robot robot)
         {
@@ -25,6 +26,7 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(State));
             OnPropertyChanged(nameof(HasPart));
             OnPropertyChanged(nameof(Progress));
+            OnPropertyChanged(nameof(HeldTrackingNumber));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

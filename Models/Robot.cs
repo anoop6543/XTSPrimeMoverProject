@@ -33,22 +33,23 @@ namespace XTSPrimeMoverProject.Models
             State = RobotState.Idle;
             HeldPart = null;
             ActionProgress = 0;
-            ActionTime = 1.5;
+            ActionTime = 0.8;
         }
 
         public void Update(double deltaTime)
         {
-            if (State != RobotState.Idle && State != RobotState.WaitingForMover && State != RobotState.WaitingForMachine)
+            if (State != RobotState.Idle)
             {
                 ActionProgress += deltaTime;
-                if (ActionProgress >= ActionTime)
-                {
-                    CompleteCurrentAction();
-                }
             }
         }
 
-        private void CompleteCurrentAction()
+        public bool IsStepComplete()
+        {
+            return State != RobotState.Idle && ActionProgress >= ActionTime;
+        }
+
+        public void AdvanceState()
         {
             ActionProgress = 0;
 
@@ -61,7 +62,6 @@ namespace XTSPrimeMoverProject.Models
                     State = RobotState.PlacingInMachine;
                     break;
                 case RobotState.PlacingInMachine:
-                    HeldPart = null;
                     State = RobotState.Idle;
                     break;
                 case RobotState.PickingFromMachine:
@@ -71,7 +71,6 @@ namespace XTSPrimeMoverProject.Models
                     State = RobotState.PlacingOnMover;
                     break;
                 case RobotState.PlacingOnMover:
-                    HeldPart = null;
                     State = RobotState.Idle;
                     break;
             }
@@ -89,6 +88,11 @@ namespace XTSPrimeMoverProject.Models
             HeldPart = part;
             State = RobotState.PickingFromMachine;
             ActionProgress = 0;
+        }
+
+        public void ReleaseHeldPart()
+        {
+            HeldPart = null;
         }
     }
 }

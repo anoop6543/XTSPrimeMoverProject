@@ -56,6 +56,8 @@ namespace XTSPrimeMoverProject.Models
                         CurrentPart.HasDefect = true;
                     }
 
+                    CurrentPart.CompletedStations++;
+                    CurrentPart.CurrentLocation = Name;
                     CurrentPart.AddProcessHistory($"{Name} - {Type}");
                     return true;
                 }

@@ -90,4 +90,59 @@ namespace XTSPrimeMoverProject
             throw new NotImplementedException();
         }
     }
+
+    public class StationRotaryPositionConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values.Length < 2 || values[0] is not int stationIndex || values[1] is not int stationCount || stationCount <= 0)
+            {
+                return 0.0;
+            }
+
+            const double center = 110;
+            const double radius = 78;
+            double angleRadians = ((360.0 * stationIndex / stationCount) - 90.0) * Math.PI / 180.0;
+
+            if (string.Equals(parameter?.ToString(), "X", StringComparison.OrdinalIgnoreCase))
+            {
+                return center + radius * Math.Cos(angleRadians) - 18;
+            }
+
+            return center + radius * Math.Sin(angleRadians) - 18;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class StationStateBrushConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            string status = values.Length > 0 ? values[0]?.ToString() ?? "Idle" : "Idle";
+            bool isCurrent = values.Length > 1 && values[1] is bool current && current;
+            bool hasPart = values.Length > 2 && values[2] is bool part && part;
+
+            if (isCurrent && hasPart)
+            {
+                return Colors.DeepSkyBlue;
+            }
+
+            return status switch
+            {
+                "Processing" => Colors.Orange,
+                "Complete" => Colors.LimeGreen,
+                "Error" => Colors.Red,
+                _ => Colors.DimGray
+            };
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

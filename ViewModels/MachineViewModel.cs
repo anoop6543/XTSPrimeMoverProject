@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -13,24 +14,47 @@ namespace XTSPrimeMoverProject.ViewModels
         public string Name => _machine.Name;
         public string Type => _machine.Type.ToString();
         public string Status => _machine.IsOperational ? "Operational" : "Offline";
-        public string CurrentStation => _machine.CurrentStationIndex >= 0 && _machine.CurrentStationIndex < _machine.Stations.Count 
-            ? _machine.Stations[_machine.CurrentStationIndex].Name 
+        public string CurrentStation => _machine.CurrentStationIndex >= 0 && _machine.CurrentStationIndex < _machine.Stations.Count
+            ? _machine.Stations[_machine.CurrentStationIndex].Name
             : "Idle";
+        public int CurrentStationIndex => _machine.CurrentStationIndex;
         public int StationCount => _machine.Stations.Count;
         public double Progress => _machine.CurrentStationIndex >= 0 && _machine.CurrentStationIndex < _machine.Stations.Count
             ? (_machine.Stations[_machine.CurrentStationIndex].ElapsedTime / _machine.Stations[_machine.CurrentStationIndex].ProcessTime) * 100
             : 0;
+        public string CurrentPartId => _machine.CurrentStationIndex >= 0 && _machine.CurrentStationIndex < _machine.Stations.Count && _machine.Stations[_machine.CurrentStationIndex].CurrentPart != null
+            ? _machine.Stations[_machine.CurrentStationIndex].CurrentPart.TrackingNumber
+            : "-";
+        public int PartsEnteredCount => _machine.PartsEnteredCount;
+        public int PartsExitedCount => _machine.PartsExitedCount;
+
+        public ObservableCollection<StationViewModel> Stations { get; }
 
         public MachineViewModel(Machine machine)
         {
             _machine = machine;
+            Stations = new ObservableCollection<StationViewModel>();
+
+            foreach (var station in _machine.Stations)
+            {
+                Stations.Add(new StationViewModel(station, _machine));
+            }
         }
 
         public void Update()
         {
             OnPropertyChanged(nameof(Status));
             OnPropertyChanged(nameof(CurrentStation));
+            OnPropertyChanged(nameof(CurrentStationIndex));
             OnPropertyChanged(nameof(Progress));
+            OnPropertyChanged(nameof(CurrentPartId));
+            OnPropertyChanged(nameof(PartsEnteredCount));
+            OnPropertyChanged(nameof(PartsExitedCount));
+
+            foreach (var station in Stations)
+            {
+                station.Update();
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
