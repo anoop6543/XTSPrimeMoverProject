@@ -1,0 +1,129 @@
+using System;
+using System.Collections.Generic;
+
+namespace XTSPrimeMoverProject.Models
+{
+    public enum MachineType
+    {
+        LaserWelding,
+        PrecisionAssembly,
+        QualityInspection,
+        FunctionalTesting
+    }
+
+    public class Machine
+    {
+        public int MachineId { get; set; }
+        public string Name { get; set; }
+        public MachineType Type { get; set; }
+        public List<Station> Stations { get; set; }
+        public int CurrentStationIndex { get; set; }
+        public double LoadAngle { get; set; }
+        public bool IsOperational { get; set; }
+
+        public Machine(int id, string name, MachineType type, double loadAngle)
+        {
+            MachineId = id;
+            Name = name;
+            Type = type;
+            LoadAngle = loadAngle;
+            Stations = new List<Station>();
+            CurrentStationIndex = 0;
+            IsOperational = true;
+
+            InitializeStations();
+        }
+
+        private void InitializeStations()
+        {
+            switch (Type)
+            {
+                case MachineType.LaserWelding:
+                    Stations.Add(new Station(0, "Pre-Heat", StationType.Assembly, 2.0));
+                    Stations.Add(new Station(1, "Laser Weld", StationType.Welding, 3.5, 0.03));
+                    Stations.Add(new Station(2, "Cool Down", StationType.Assembly, 2.0));
+                    Stations.Add(new Station(3, "Weld Inspection", StationType.Inspection, 1.5, 0.02));
+                    break;
+
+                case MachineType.PrecisionAssembly:
+                    Stations.Add(new Station(0, "Component Pick", StationType.Assembly, 1.5));
+                    Stations.Add(new Station(1, "Precision Place", StationType.Assembly, 2.5, 0.04));
+                    Stations.Add(new Station(2, "Screw Drive", StationType.Assembly, 2.0, 0.03));
+                    Stations.Add(new Station(3, "Torque Verify", StationType.Testing, 1.5, 0.02));
+                    Stations.Add(new Station(4, "Vision Check", StationType.Inspection, 1.0, 0.01));
+                    break;
+
+                case MachineType.QualityInspection:
+                    Stations.Add(new Station(0, "Visual Inspect", StationType.Inspection, 2.0, 0.05));
+                    Stations.Add(new Station(1, "Dimension Check", StationType.Inspection, 2.5, 0.04));
+                    Stations.Add(new Station(2, "Surface Scan", StationType.Inspection, 2.0, 0.03));
+                    Stations.Add(new Station(3, "Weight Check", StationType.Testing, 1.0, 0.01));
+                    break;
+
+                case MachineType.FunctionalTesting:
+                    Stations.Add(new Station(0, "Power-On Test", StationType.Testing, 3.0, 0.06));
+                    Stations.Add(new Station(1, "Function Test", StationType.Testing, 4.0, 0.07));
+                    Stations.Add(new Station(2, "Stress Test", StationType.Testing, 3.5, 0.05));
+                    Stations.Add(new Station(3, "Final Verify", StationType.Testing, 2.0, 0.02));
+                    Stations.Add(new Station(4, "Label Print", StationType.Packaging, 1.0));
+                    break;
+            }
+        }
+
+        public void Update(double deltaTime)
+        {
+            if (CurrentStationIndex >= 0 && CurrentStationIndex < Stations.Count)
+            {
+                Stations[CurrentStationIndex].Update(deltaTime);
+            }
+        }
+
+        public bool CanAcceptPart()
+        {
+            return IsOperational && (Stations.Count == 0 || Stations[0].Status == StationStatus.Idle);
+        }
+
+        public void LoadPart(Part part)
+        {
+            if (Stations.Count > 0)
+            {
+                Stations[0].StartProcessing(part);
+                CurrentStationIndex = 0;
+            }
+        }
+
+        public bool TryMoveToNextStation()
+        {
+            if (CurrentStationIndex >= 0 && CurrentStationIndex < Stations.Count)
+            {
+                if (Stations[CurrentStationIndex].Status == StationStatus.Complete)
+                {
+                    if (CurrentStationIndex < Stations.Count - 1)
+                    {
+                        if (Stations[CurrentStationIndex + 1].Status == StationStatus.Idle)
+                        {
+                            Part part = Stations[CurrentStationIndex].CompletePart();
+                            CurrentStationIndex++;
+                            Stations[CurrentStationIndex].StartProcessing(part);
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public Part UnloadPart()
+        {
+            if (CurrentStationIndex == Stations.Count - 1)
+            {
+                return Stations[CurrentStationIndex].CompletePart();
+            }
+            return null;
+        }
+    }
+}
