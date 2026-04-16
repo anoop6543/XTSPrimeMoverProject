@@ -49,6 +49,7 @@ namespace XTSPrimeMoverProject.Services
         private readonly TonFb _stationTimeoutTon = new();
         private readonly AlarmLatchFb _alarmLatch = new();
         private double _indexPulseRemaining;
+        private int _lastStationIndex = -1;
 
         public bool Enable { get; set; }
         public bool InterlockPermit { get; set; }
@@ -74,6 +75,7 @@ namespace XTSPrimeMoverProject.Services
                     machine.FaultActive = false;
                     machine.FaultMessage = string.Empty;
                     machine.IsIndexing = false;
+                    _lastStationIndex = machine.CurrentStationIndex;
                     if (Enable)
                     {
                         machine.SequencerState = PlcSequencerState.Ready;
@@ -84,6 +86,9 @@ namespace XTSPrimeMoverProject.Services
                     Busy = false;
                     Done = false;
                     machine.IsIndexing = false;
+                    _stationTimeoutTon.IN = false;
+                    _stationTimeoutTon.Update(0);
+                    _lastStationIndex = machine.CurrentStationIndex;
                     if (!Enable)
                     {
                         return;
@@ -144,6 +149,13 @@ namespace XTSPrimeMoverProject.Services
                         ? machine.Stations[machine.CurrentStationIndex]
                         : null;
 
+                    if (_lastStationIndex != machine.CurrentStationIndex)
+                    {
+                        _stationTimeoutTon.IN = false;
+                        _stationTimeoutTon.Update(0);
+                        _lastStationIndex = machine.CurrentStationIndex;
+                    }
+
                     bool inProcessing = station is not null && station.Status == StationStatus.Processing;
                     _stationTimeoutTon.IN = inProcessing;
                     _stationTimeoutTon.PTSeconds = station is null ? 0 : station.ProcessTime * 2.0;
@@ -183,7 +195,8 @@ namespace XTSPrimeMoverProject.Services
                     machine.IsIndexing = false;
                     _indexPulseRemaining = 0;
                     _stationTimeoutTon.IN = false;
-                    _stationTimeoutTon.Update(deltaTime);
+                    _stationTimeoutTon.Update(0);
+                    _lastStationIndex = machine.CurrentStationIndex;
 
                     _alarmLatch.Set = false;
                     _alarmLatch.Reset = true;

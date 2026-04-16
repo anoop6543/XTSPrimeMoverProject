@@ -4,7 +4,6 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:XTSPrimeMoverProject"
-        xmlns:vm="clr-namespace:XTSPrimeMoverProject.ViewModels"
         mc:Ignorable="d"
         Title="Beckhoff XTS Prime Mover System" Height="900" Width="1400"
         Background="#1E1E1E">
@@ -43,6 +42,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="180"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
@@ -81,218 +81,247 @@
             
             <!-- XTS Visualization -->
             <Border Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Margin="0,0,5,0">
-                <Grid>
-                    <Canvas x:Name="XTSCanvas" ClipToBounds="True">
-                        <!-- XTS Track Circle -->
-                        <Ellipse Width="500" Height="500" 
-                                 Stroke="#FFD700" 
-                                 StrokeThickness="4" 
-                                 Fill="Transparent"
-                                 Canvas.Left="150" 
-                                 Canvas.Top="100"/>
-                        
-                        <!-- Center Info -->
-                        <Border Canvas.Left="350" Canvas.Top="320" Background="#2D2D30" Padding="10" CornerRadius="5">
-                            <StackPanel>
-                                <TextBlock Text="XTS SYSTEM" Style="{StaticResource HeaderTextStyle}" HorizontalAlignment="Center"/>
-                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource StatusTextStyle}" HorizontalAlignment="Center" Foreground="#00FF00"/>
-                            </StackPanel>
-                        </Border>
-                        
-                        <!-- Machine Stations + Local HMI beside each machine -->
-                        <Canvas>
-                            <Border Canvas.Left="790" Canvas.Top="150" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[0], Mode=OneWay}">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              CanContentScroll="False"
+                              Padding="6">
+                    <Grid Width="1040" Height="760" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Canvas x:Name="XTSCanvas" Width="1040" Height="760" ClipToBounds="False">
+                            <!-- XTS Track (oval/stadium style, Beckhoff-like detailing) -->
+                            <Rectangle Width="760" Height="320"
+                                       RadiusX="160" RadiusY="160"
+                                       Stroke="#6F6F6F"
+                                       StrokeThickness="2"
+                                       Fill="#1E1F22"
+                                       Canvas.Left="110"
+                                       Canvas.Top="130"/>
+
+                            <Rectangle Width="700" Height="260"
+                                       RadiusX="130" RadiusY="130"
+                                       Stroke="#3F3F46"
+                                       StrokeThickness="2"
+                                       Fill="#252526"
+                                       Canvas.Left="140"
+                                       Canvas.Top="160"/>
+
+                            <!-- Lane markings -->
+                            <Rectangle Width="420" Height="2" Fill="#C9A400" Canvas.Left="280" Canvas.Top="166" Opacity="0.75"/>
+                            <Rectangle Width="420" Height="2" Fill="#C9A400" Canvas.Left="280" Canvas.Top="420" Opacity="0.75"/>
+
+                            <!-- Segment seams / motor module tile look (top run) -->
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="288" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="332" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="376" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="420" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="464" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="508" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="552" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="596" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="640" Canvas.Top="148"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="684" Canvas.Top="148"/>
+
+                            <!-- Segment seams / motor module tile look (bottom run) -->
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="288" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="332" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="376" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="420" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="464" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="508" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="552" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="596" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="640" Canvas.Top="424"/>
+                            <Rectangle Width="28" Height="8" Fill="#303238" Stroke="#4E525A" StrokeThickness="0.5" Canvas.Left="684" Canvas.Top="424"/>
+
+                            <!-- Process zones: entry/load and exit/unload -->
+                            <Border Canvas.Left="210" Canvas.Top="452" Background="#1F1F20" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="6,3">
                                 <StackPanel>
-                                    <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
-                                    <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
-                                    <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
-                                    <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
-                                    <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
-                                        <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
-                                        <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
-                                            <ItemsControl.RenderTransform>
-                                                <RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/>
-                                            </ItemsControl.RenderTransform>
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemContainerStyle>
-                                                <Style>
-                                                    <Setter Property="Canvas.Left">
-                                                        <Setter.Value>
-                                                            <MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay">
-                                                                <Binding Path="StationIndex" Mode="OneWay"/>
-                                                                <Binding Path="StationCount" Mode="OneWay"/>
+                                    <TextBlock Text="ENTRY / LOAD ZONE" Foreground="#9CDCFE" FontSize="9" FontWeight="Bold"/>
+                                    <TextBlock Text="Operator + Robot place parts on XTS" Foreground="#CCCCCC" FontSize="8"/>
+                                </StackPanel>
+                            </Border>
+                            <Line X1="320" Y1="450" X2="280" Y2="418" Stroke="#9CDCFE" StrokeThickness="1.5"/>
+                            <Polygon Points="280,418 286,418 282,412" Fill="#9CDCFE"/>
+
+                            <Border Canvas.Left="710" Canvas.Top="94" Background="#1F1F20" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4" Padding="6,3">
+                                <StackPanel>
+                                    <TextBlock Text="EXIT / UNLOAD ZONE" Foreground="#D7BA7D" FontSize="9" FontWeight="Bold"/>
+                                    <TextBlock Text="Good/Bad part discharge" Foreground="#CCCCCC" FontSize="8"/>
+                                </StackPanel>
+                            </Border>
+                            <Line X1="766" Y1="128" X2="724" Y2="164" Stroke="#D7BA7D" StrokeThickness="1.5"/>
+                            <Polygon Points="724,164 731,163 729,157" Fill="#D7BA7D"/>
+
+                            <!-- Live blinkers for zone activity -->
+                            <Ellipse Width="14" Height="14" Canvas.Left="334" Canvas.Top="446" Stroke="#9CDCFE" StrokeThickness="1.5" Fill="#2A3A4A" Opacity="0.30">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EntryZoneBlink, Mode=OneWay}" Value="True">
+                                                <Setter Property="Opacity" Value="1"/>
+                                                <Setter Property="Fill" Value="#4FC3F7"/>
+                                                <DataTrigger.EnterActions>
+                                                    <BeginStoryboard x:Name="EntryBlinkStoryboard">
+                                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.35" To="1.0" Duration="0:0:0.16"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </DataTrigger.EnterActions>
+                                                <DataTrigger.ExitActions>
+                                                    <StopStoryboard BeginStoryboardName="EntryBlinkStoryboard"/>
+                                                </DataTrigger.ExitActions>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+
+                            <Ellipse Width="14" Height="14" Canvas.Left="772" Canvas.Top="120" Stroke="#D7BA7D" StrokeThickness="1.5" Fill="#3A3222" Opacity="0.30">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ExitZoneBlink, Mode=OneWay}" Value="True">
+                                                <Setter Property="Opacity" Value="1"/>
+                                                <Setter Property="Fill" Value="#FFD54F"/>
+                                                <DataTrigger.EnterActions>
+                                                    <BeginStoryboard x:Name="ExitBlinkStoryboard">
+                                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.35" To="1.0" Duration="0:0:0.16"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </DataTrigger.EnterActions>
+                                                <DataTrigger.ExitActions>
+                                                    <StopStoryboard BeginStoryboardName="ExitBlinkStoryboard"/>
+                                                </DataTrigger.ExitActions>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+
+                            <!-- Process deck in center -->
+                            <Rectangle Width="420" Height="120"
+                                       RadiusX="12" RadiusY="12"
+                                       Stroke="#4A4A4A"
+                                       StrokeThickness="1"
+                                       Fill="#2A2A2A"
+                                       Canvas.Left="280"
+                                       Canvas.Top="230"/>
+
+                            <Border Canvas.Left="430" Canvas.Top="265" Background="#2D2D30" Padding="10" CornerRadius="5">
+                                <StackPanel>
+                                    <TextBlock Text="XTS SYSTEM" Style="{StaticResource HeaderTextStyle}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource StatusTextStyle}" HorizontalAlignment="Center" Foreground="#00FF00"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Canvas>
+                                <Border Canvas.Left="790" Canvas.Top="150" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[0], Mode=OneWay}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
+                                        <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                        <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
+                                            <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
+                                            <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
+                                                <ItemsControl.RenderTransform><RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/></ItemsControl.RenderTransform>
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemContainerStyle><Style><Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter><Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter></Style></ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1"><Ellipse.Fill><SolidColorBrush><SolidColorBrush.Color><MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay"><Binding Path="Status" Mode="OneWay"/><Binding Path="IsCurrentIndex" Mode="OneWay"/><Binding Path="HasPart" Mode="OneWay"/></MultiBinding></SolidColorBrush.Color></SolidColorBrush></Ellipse.Fill></Ellipse></DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Canvas>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Canvas.Left="790" Canvas.Top="390" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[1], Mode=OneWay}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
+                                        <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                        <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
+                                            <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
+                                            <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
+                                                <ItemsControl.RenderTransform><RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/></ItemsControl.RenderTransform>
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemContainerStyle><Style><Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter><Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter></Style></ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1"><Ellipse.Fill><SolidColorBrush><SolidColorBrush.Color><MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay"><Binding Path="Status" Mode="OneWay"/><Binding Path="IsCurrentIndex" Mode="OneWay"/><Binding Path="HasPart" Mode="OneWay"/></MultiBinding></SolidColorBrush.Color></SolidColorBrush></Ellipse.Fill></Ellipse></DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Canvas>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Canvas.Left="-10" Canvas.Top="390" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[2], Mode=OneWay}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
+                                        <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                        <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
+                                            <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
+                                            <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
+                                                <ItemsControl.RenderTransform><RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/></ItemsControl.RenderTransform>
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemContainerStyle><Style><Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter><Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter></Style></ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1"><Ellipse.Fill><SolidColorBrush><SolidColorBrush.Color><MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay"><Binding Path="Status" Mode="OneWay"/><Binding Path="IsCurrentIndex" Mode="OneWay"/><Binding Path="HasPart" Mode="OneWay"/></MultiBinding></SolidColorBrush.Color></SolidColorBrush></Ellipse.Fill></Ellipse></DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Canvas>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Canvas.Left="-10" Canvas.Top="150" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[3], Mode=OneWay}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
+                                        <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
+                                        <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                        <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
+                                            <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
+                                            <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
+                                                <ItemsControl.RenderTransform><RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/></ItemsControl.RenderTransform>
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemContainerStyle><Style><Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter><Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter></Style></ItemsControl.ItemContainerStyle>
+                                                <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1"><Ellipse.Fill><SolidColorBrush><SolidColorBrush.Color><MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay"><Binding Path="Status" Mode="OneWay"/><Binding Path="IsCurrentIndex" Mode="OneWay"/><Binding Path="HasPart" Mode="OneWay"/></MultiBinding></SolidColorBrush.Color></SolidColorBrush></Ellipse.Fill></Ellipse></DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Canvas>
+                                    </StackPanel>
+                                </Border>
+                            </Canvas>
+
+                            <ItemsControl x:Name="MoversControl" ItemsSource="{Binding Movers, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style>
+                                        <Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource MoverPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="Position" Mode="OneWay"/></MultiBinding></Setter.Value></Setter>
+                                        <Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource MoverPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="Position" Mode="OneWay"/></MultiBinding></Setter.Value></Setter>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ToolTip="{Binding TrackingNumber, Mode=OneWay}">
+                                            <Ellipse Width="20" Height="20">
+                                                <Ellipse.Fill>
+                                                    <SolidColorBrush>
+                                                        <SolidColorBrush.Color>
+                                                            <MultiBinding Converter="{StaticResource MoverColorConverter}" Mode="OneWay">
+                                                                <Binding Path="HasPart" Mode="OneWay"/>
+                                                                <Binding Path="PartStatus" Mode="OneWay"/>
                                                             </MultiBinding>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                    <Setter Property="Canvas.Top">
-                                                        <Setter.Value>
-                                                            <MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay">
-                                                                <Binding Path="StationIndex" Mode="OneWay"/>
-                                                                <Binding Path="StationCount" Mode="OneWay"/>
-                                                            </MultiBinding>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </ItemsControl.ItemContainerStyle>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1" RenderTransformOrigin="0.5,0.5">
-                                                        <Ellipse.RenderTransform>
-                                                            <ScaleTransform x:Name="IndexPulseTransform" ScaleX="1" ScaleY="1"/>
-                                                        </Ellipse.RenderTransform>
-                                                        <Ellipse.Fill>
-                                                            <SolidColorBrush>
-                                                                <SolidColorBrush.Color>
-                                                                    <MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay">
-                                                                        <Binding Path="Status" Mode="OneWay"/>
-                                                                        <Binding Path="IsCurrentIndex" Mode="OneWay"/>
-                                                                        <Binding Path="HasPart" Mode="OneWay"/>
-                                                                    </MultiBinding>
-                                                                </SolidColorBrush.Color>
-                                                            </SolidColorBrush>
-                                                        </Ellipse.Fill>
-                                                    </Ellipse>
-                                                    <DataTemplate.Triggers>
-                                                        <MultiDataTrigger>
-                                                            <MultiDataTrigger.Conditions>
-                                                                <Condition Binding="{Binding IsCurrentIndex, Mode=OneWay}" Value="True"/>
-                                                                <Condition Binding="{Binding DataContext.IsIndexing, RelativeSource={RelativeSource AncestorType=Border}, Mode=OneWay}" Value="True"/>
-                                                            </MultiDataTrigger.Conditions>
-                                                            <MultiDataTrigger.EnterActions>
-                                                                <BeginStoryboard>
-                                                                    <Storyboard AutoReverse="True" RepeatBehavior="2x">
-                                                                        <DoubleAnimation Storyboard.TargetName="IndexPulseTransform" Storyboard.TargetProperty="ScaleX" To="1.45" Duration="0:0:0.15"/>
-                                                                        <DoubleAnimation Storyboard.TargetName="IndexPulseTransform" Storyboard.TargetProperty="ScaleY" To="1.45" Duration="0:0:0.15"/>
-                                                                    </Storyboard>
-                                                                </BeginStoryboard>
-                                                            </MultiDataTrigger.EnterActions>
-                                                        </MultiDataTrigger>
-                                                    </DataTemplate.Triggers>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Canvas>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Canvas.Left="790" Canvas.Top="390" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[1], Mode=OneWay}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
-                                    <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
-                                    <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
-                                    <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
-                                    <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
-                                        <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
-                                        <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
-                                            <ItemsControl.RenderTransform><RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/></ItemsControl.RenderTransform>
-                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemContainerStyle><Style><Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter><Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter></Style></ItemsControl.ItemContainerStyle>
-                                            <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1"><Ellipse.Fill><SolidColorBrush><SolidColorBrush.Color><MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay"><Binding Path="Status" Mode="OneWay"/><Binding Path="IsCurrentIndex" Mode="OneWay"/><Binding Path="HasPart" Mode="OneWay"/></MultiBinding></SolidColorBrush.Color></SolidColorBrush></Ellipse.Fill></Ellipse></DataTemplate></ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Canvas>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Canvas.Left="-10" Canvas.Top="390" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[2], Mode=OneWay}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
-                                    <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
-                                    <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
-                                    <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
-                                    <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
-                                        <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
-                                        <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
-                                            <ItemsControl.RenderTransform><RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/></ItemsControl.RenderTransform>
-                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemContainerStyle><Style><Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter><Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter></Style></ItemsControl.ItemContainerStyle>
-                                            <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1"><Ellipse.Fill><SolidColorBrush><SolidColorBrush.Color><MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay"><Binding Path="Status" Mode="OneWay"/><Binding Path="IsCurrentIndex" Mode="OneWay"/><Binding Path="HasPart" Mode="OneWay"/></MultiBinding></SolidColorBrush.Color></SolidColorBrush></Ellipse.Fill></Ellipse></DataTemplate></ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Canvas>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Canvas.Left="-10" Canvas.Top="150" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[3], Mode=OneWay}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
-                                    <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
-                                    <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
-                                    <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
-                                    <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
-                                        <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
-                                        <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
-                                            <ItemsControl.RenderTransform><RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/></ItemsControl.RenderTransform>
-                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemContainerStyle><Style><Setter Property="Canvas.Left"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter><Setter Property="Canvas.Top"><Setter.Value><MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay"><Binding Path="StationIndex" Mode="OneWay"/><Binding Path="StationCount" Mode="OneWay"/></MultiBinding></Setter.Value></Setter></Style></ItemsControl.ItemContainerStyle>
-                                            <ItemsControl.ItemTemplate><DataTemplate><Ellipse Width="14" Height="14" Stroke="#E6E6E6" StrokeThickness="1"><Ellipse.Fill><SolidColorBrush><SolidColorBrush.Color><MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay"><Binding Path="Status" Mode="OneWay"/><Binding Path="IsCurrentIndex" Mode="OneWay"/><Binding Path="HasPart" Mode="OneWay"/></MultiBinding></SolidColorBrush.Color></SolidColorBrush></Ellipse.Fill></Ellipse></DataTemplate></ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </Canvas>
-                                </StackPanel>
-                            </Border>
+                                                        </SolidColorBrush.Color>
+                                                    </SolidColorBrush>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <TextBlock Text="{Binding MoverId, Mode=OneWay}" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding ShortTrackingNumber, Mode=OneWay}" Foreground="#9CDCFE" FontSize="7" Margin="0,18,0,0" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </Canvas>
-                        
-                        <!-- Movers (will be positioned dynamically) -->
-                        <ItemsControl x:Name="MoversControl" ItemsSource="{Binding Movers, Mode=OneWay}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <Canvas/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemContainerStyle>
-                                <Style>
-                                    <Setter Property="Canvas.Left">
-                                        <Setter.Value>
-                                            <MultiBinding Converter="{StaticResource MoverPositionConverter}" ConverterParameter="X" Mode="OneWay">
-                                                <Binding Path="Position" Mode="OneWay"/>
-                                            </MultiBinding>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Setter Property="Canvas.Top">
-                                        <Setter.Value>
-                                            <MultiBinding Converter="{StaticResource MoverPositionConverter}" ConverterParameter="Y" Mode="OneWay">
-                                                <Binding Path="Position" Mode="OneWay"/>
-                                            </MultiBinding>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ItemsControl.ItemContainerStyle>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ToolTip="{Binding TrackingNumber, Mode=OneWay}">
-                                        <Ellipse Width="20" Height="20">
-                                            <Ellipse.Fill>
-                                                <SolidColorBrush>
-                                                    <SolidColorBrush.Color>
-                                                        <MultiBinding Converter="{StaticResource MoverColorConverter}" Mode="OneWay">
-                                                            <Binding Path="HasPart" Mode="OneWay"/>
-                                                            <Binding Path="PartStatus" Mode="OneWay"/>
-                                                        </MultiBinding>
-                                                    </SolidColorBrush.Color>
-                                                </SolidColorBrush>
-                                            </Ellipse.Fill>
-                                        </Ellipse>
-                                        <TextBlock Text="{Binding MoverId, Mode=OneWay}" 
-                                                   Foreground="White" 
-                                                   FontSize="9" 
-                                                   FontWeight="Bold"
-                                                   HorizontalAlignment="Center" 
-                                                   VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding ShortTrackingNumber, Mode=OneWay}"
-                                                   Foreground="#9CDCFE"
-                                                   FontSize="7"
-                                                   Margin="0,18,0,0"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Top"/>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </Canvas>
-                </Grid>
+                    </Grid>
+                </ScrollViewer>
             </Border>
-            
-            <!-- Info Panel -->
+
             <Border Grid.Column="1" Background="#252526" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5">
                 <TabControl Background="#252526" BorderThickness="0">
                     <TabItem Header="Line HMI">
@@ -301,197 +330,24 @@
                                 <TextBlock Text="PRODUCTION STATISTICS" Style="{StaticResource HeaderTextStyle}"/>
                                 <Border Background="#2D2D30" Padding="10" CornerRadius="5" Margin="0,5">
                                     <StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Prime Mover Entered: " Style="{StaticResource StatusTextStyle}" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding PrimeMoverEnteredCount, Mode=OneWay}" Style="{StaticResource StatusTextStyle}" Foreground="#9CDCFE"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Prime Mover Exited: " Style="{StaticResource StatusTextStyle}" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding PrimeMoverExitedCount, Mode=OneWay}" Style="{StaticResource StatusTextStyle}" Foreground="#C586C0"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Good Parts: " Style="{StaticResource StatusTextStyle}" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding GoodPartsCount, Mode=OneWay}" Style="{StaticResource StatusTextStyle}" Foreground="#00FF00"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Bad Parts: " Style="{StaticResource StatusTextStyle}" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding BadPartsCount, Mode=OneWay}" Style="{StaticResource StatusTextStyle}" Foreground="#FF0000"/>
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="Yield: " Style="{StaticResource StatusTextStyle}" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding YieldPercentage, Mode=OneWay, StringFormat={}{0:F1}%}" Style="{StaticResource StatusTextStyle}" Foreground="#FFD700"/>
-                                        </StackPanel>
+                                        <TextBlock Text="{Binding PrimeMoverEnteredCount, Mode=OneWay, StringFormat='Prime Mover Entered: {0}'}" Style="{StaticResource StatusTextStyle}"/>
+                                        <TextBlock Text="{Binding PrimeMoverExitedCount, Mode=OneWay, StringFormat='Prime Mover Exited: {0}'}" Style="{StaticResource StatusTextStyle}"/>
+                                        <TextBlock Text="{Binding GoodPartsCount, Mode=OneWay, StringFormat='Good Parts: {0}'}" Style="{StaticResource StatusTextStyle}"/>
+                                        <TextBlock Text="{Binding BadPartsCount, Mode=OneWay, StringFormat='Bad Parts: {0}'}" Style="{StaticResource StatusTextStyle}"/>
+                                        <TextBlock Text="{Binding YieldPercentage, Mode=OneWay, StringFormat='Yield: {0:F1}%'}" Style="{StaticResource StatusTextStyle}"/>
                                         <TextBlock Text="{Binding DatabasePath, Mode=OneWay, StringFormat='DB: {0}'}" Foreground="#AAAAAA" FontSize="10" Margin="5,4,5,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 
-                                <TextBlock Text="MOVERS &amp; LIVE PART TRACKING" Style="{StaticResource HeaderTextStyle}" Margin="0,15,0,0"/>
-                                <ItemsControl ItemsSource="{Binding Movers, Mode=OneWay}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#2D2D30" Padding="8" Margin="0,2" CornerRadius="3">
-                                                <StackPanel>
-                                                    <TextBlock>
-                                                        <Run Text="Mover " Foreground="#CCCCCC"/>
-                                                        <Run Text="{Binding MoverId, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
-                                                        <Run Text=" - " Foreground="#CCCCCC"/>
-                                                        <Run Text="{Binding State, Mode=OneWay}" Foreground="#FFD700"/>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding TrackingNumber, Mode=OneWay, StringFormat='Tracking: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
-                                                    <TextBlock Text="{Binding PartStatus, Mode=OneWay, StringFormat='Status: {0}'}" Foreground="#AAAAAA" FontSize="10"/>
-                                                    <TextBlock Text="{Binding NextMachine, Mode=OneWay, StringFormat='Next: {0}'}" Foreground="#B5CEA8" FontSize="10"/>
-                                                    <TextBlock Text="{Binding CurrentLocation, Mode=OneWay, StringFormat='Loc: {0}'}" Foreground="#CE9178" FontSize="10"/>
-                                                    <ProgressBar Value="{Binding CompletionPercent, Mode=OneWay}" Height="5" Margin="0,3,0,0" Background="#3F3F46" Foreground="#00B7C3"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <TextBlock Text="MACHINE ROTARY CELLS + MINI HMI" Style="{StaticResource HeaderTextStyle}" Margin="0,15,0,0" Visibility="Collapsed"/>
-                                <ItemsControl ItemsSource="{Binding Machines, Mode=OneWay}" Visibility="Collapsed">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#2D2D30" Padding="10" Margin="0,6" CornerRadius="5" BorderBrush="#3F3F46" BorderThickness="1">
-                                                <StackPanel>
-                                                    <TextBlock>
-                                                        <Run Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
-                                                        <Run Text="  |  " Foreground="#777777"/>
-                                                        <Run Text="{Binding Type, Mode=OneWay}" Foreground="#FFD700"/>
-                                                    </TextBlock>
-
-                                                    <Border Background="#1F1F20" Margin="0,6,0,8" Padding="6" CornerRadius="4">
-                                                        <StackPanel>
-                                                            <TextBlock Text="Mini HMI" Foreground="#9CDCFE" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CurrentStation, Mode=OneWay, StringFormat='Indexing At: {0}'}" Foreground="#CCCCCC" FontSize="11"/>
-                                                            <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part ID: {0}'}" Foreground="#CCCCCC" FontSize="11"/>
-                                                            <TextBlock Text="{Binding PartsEnteredCount, Mode=OneWay, StringFormat='Entered: {0}'}" Foreground="#B5CEA8" FontSize="11"/>
-                                                            <TextBlock Text="{Binding PartsExitedCount, Mode=OneWay, StringFormat='Exited: {0}'}" Foreground="#D7BA7D" FontSize="11"/>
-                                                            <ProgressBar Value="{Binding Progress, Mode=OneWay}" Height="6" Margin="0,4,0,0" Background="#3F3F46" Foreground="#00FF7F"/>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <Grid HorizontalAlignment="Center" Margin="0,0,0,6">
-                                                        <Canvas Width="220" Height="220">
-                                                            <Ellipse Width="170" Height="170" Canvas.Left="25" Canvas.Top="25" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
-                                                            <Border Canvas.Left="74" Canvas.Top="89" Background="#3C3C3C" CornerRadius="25" Padding="10,6">
-                                                                <TextBlock Text="{Binding MachineId, Mode=OneWay, StringFormat='M{0} ROTARY'}" Foreground="#FFFFFF" FontSize="10" FontWeight="Bold"/>
-                                                            </Border>
-
-                                                            <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="220" Height="220" RenderTransformOrigin="0.5,0.5">
-                                                                <ItemsControl.RenderTransform>
-                                                                    <RotateTransform x:Name="MachineRotaryTransform" Angle="0"/>
-                                                                </ItemsControl.RenderTransform>
-                                                                <ItemsControl.Triggers>
-                                                                    <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                                                                        <BeginStoryboard>
-                                                                            <Storyboard RepeatBehavior="Forever">
-                                                                                <DoubleAnimation Storyboard.TargetName="MachineRotaryTransform" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:12"/>
-                                                                            </Storyboard>
-                                                                        </BeginStoryboard>
-                                                                    </EventTrigger>
-                                                                </ItemsControl.Triggers>
-                                                                <ItemsControl.ItemsPanel>
-                                                                    <ItemsPanelTemplate>
-                                                                        <Canvas/>
-                                                                    </ItemsPanelTemplate>
-                                                                </ItemsControl.ItemsPanel>
-                                                                <ItemsControl.ItemContainerStyle>
-                                                                    <Style>
-                                                                        <Setter Property="Canvas.Left">
-                                                                            <Setter.Value>
-                                                                                <MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay">
-                                                                                    <Binding Path="StationIndex" Mode="OneWay"/>
-                                                                                    <Binding Path="StationCount" Mode="OneWay"/>
-                                                                                </MultiBinding>
-                                                                            </Setter.Value>
-                                                                        </Setter>
-                                                                        <Setter Property="Canvas.Top">
-                                                                            <Setter.Value>
-                                                                                <MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay">
-                                                                                    <Binding Path="StationIndex" Mode="OneWay"/>
-                                                                                    <Binding Path="StationCount" Mode="OneWay"/>
-                                                                                </MultiBinding>
-                                                                            </Setter.Value>
-                                                                        </Setter>
-                                                                    </Style>
-                                                                </ItemsControl.ItemContainerStyle>
-                                                                <ItemsControl.ItemTemplate>
-                                                                    <DataTemplate>
-                                                                        <StackPanel Width="40">
-                                                                            <Ellipse Width="26" Height="26" Stroke="#E6E6E6" StrokeThickness="1" HorizontalAlignment="Center" RenderTransformOrigin="0.5,0.5">
-                                                                                <Ellipse.RenderTransform>
-                                                                                    <ScaleTransform x:Name="StationPulseTransform" ScaleX="1" ScaleY="1"/>
-                                                                                </Ellipse.RenderTransform>
-                                                                                <Ellipse.Fill>
-                                                                                    <SolidColorBrush>
-                                                                                        <SolidColorBrush.Color>
-                                                                                            <MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay">
-                                                                                                <Binding Path="Status" Mode="OneWay"/>
-                                                                                                <Binding Path="IsCurrentIndex" Mode="OneWay"/>
-                                                                                                <Binding Path="HasPart" Mode="OneWay"/>
-                                                                                            </MultiBinding>
-                                                                                        </SolidColorBrush.Color>
-                                                                                    </SolidColorBrush>
-                                                                                </Ellipse.Fill>
-                                                                            </Ellipse>
-                                                                            <TextBlock Text="{Binding StationIndex, Mode=OneWay}" Foreground="White" FontSize="9" HorizontalAlignment="Center" Margin="0,-20,0,8" FontWeight="Bold"/>
-                                                                            <TextBlock Text="{Binding Type, Mode=OneWay}" Foreground="#B5CEA8" FontSize="8" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
-                                                                        </StackPanel>
-                                                                        <DataTemplate.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsCurrentIndex, Mode=OneWay}" Value="True">
-                                                                                <DataTrigger.EnterActions>
-                                                                                    <BeginStoryboard x:Name="ActiveStationPulseStoryboard">
-                                                                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                                                                                            <DoubleAnimation Storyboard.TargetName="StationPulseTransform" Storyboard.TargetProperty="ScaleX" To="1.35" Duration="0:0:0.35"/>
-                                                                                            <DoubleAnimation Storyboard.TargetName="StationPulseTransform" Storyboard.TargetProperty="ScaleY" To="1.35" Duration="0:0:0.35"/>
-                                                                                        </Storyboard>
-                                                                                    </BeginStoryboard>
-                                                                                </DataTrigger.EnterActions>
-                                                                                <DataTrigger.ExitActions>
-                                                                                    <StopStoryboard BeginStoryboardName="ActiveStationPulseStoryboard"/>
-                                                                                </DataTrigger.ExitActions>
-                                                                            </DataTrigger>
-                                                                        </DataTemplate.Triggers>
-                                                                    </DataTemplate>
-                                                                </ItemsControl.ItemTemplate>
-                                                            </ItemsControl>
-                                                        </Canvas>
-                                                    </Grid>
-
-                                                    <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <DockPanel Margin="0,1">
-                                                                    <TextBlock Text="{Binding StationIndex, Mode=OneWay, StringFormat='S{0}'}" Width="24" Foreground="#9CDCFE" FontWeight="Bold"/>
-                                                                    <TextBlock Text="{Binding Name, Mode=OneWay}" Width="110" Foreground="#DCDCAA"/>
-                                                                    <TextBlock Text="{Binding Status, Mode=OneWay}" Width="68" Foreground="#CCCCCC"/>
-                                                                    <TextBlock Text="{Binding PartId, Mode=OneWay, StringFormat='P:{0}'}" Foreground="#AAAAAA"/>
-                                                                </DockPanel>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <TextBlock Text="MACHINE PLC STATE SUMMARY" Style="{StaticResource HeaderTextStyle}" Margin="0,15,0,0"/>
-                                <ItemsControl ItemsSource="{Binding Machines, Mode=OneWay}">
+                                <TextBlock Text="WATCHDOG STATUS" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
+                                <ItemsControl ItemsSource="{Binding WatchdogStatuses, Mode=OneWay}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#2D2D30" Padding="8" Margin="0,3" CornerRadius="3" BorderBrush="#3F3F46" BorderThickness="1">
                                                 <StackPanel>
-                                                    <TextBlock>
-                                                        <Run Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
-                                                        <Run Text=" | PLC: " Foreground="#777"/>
-                                                        <Run Text="{Binding SequencerState, Mode=OneWay}" Foreground="#FFD700"/>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding CurrentStation, Mode=OneWay, StringFormat='Station: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
-                                                    <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
-                                                    <TextBlock Text="{Binding FaultActive, Mode=OneWay, StringFormat='Fault Active: {0}'}" Foreground="#CE9178" FontSize="10"/>
-                                                    <TextBlock Text="{Binding FaultMessage, Mode=OneWay, StringFormat='Fault: {0}'}" Foreground="#CE9178" FontSize="10" TextWrapping="Wrap"/>
+                                                    <TextBlock><Run Text="Code: "/><Run Text="{Binding Code}"/><Run Text=" | Count: "/><Run Text="{Binding TriggerCount}"/></TextBlock>
+                                                    <TextBlock><Run Text="Last Trigger: "/><Run Text="{Binding LastTriggeredAtText}"/><Run Text=" | Last Object: "/><Run Text="{Binding LastRecoveredObject}"/></TextBlock>
+                                                    <TextBlock Text="{Binding LastMessage, StringFormat='Message: {0}'}" Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -505,41 +361,19 @@
                         <Grid Margin="10">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
-
-                            <StackPanel Grid.Row="0">
-                                <TextBlock Text="Part History Inspector" Style="{StaticResource HeaderTextStyle}" Margin="0,0,0,6"/>
+                            <StackPanel>
                                 <DockPanel>
-                                    <TextBox Width="170"
-                                             Text="{Binding PartHistoryTrackingNumber, UpdateSourceTrigger=PropertyChanged}"
-                                             Margin="0,0,6,0"
-                                             VerticalContentAlignment="Center"/>
-                                    <Button Content="Inspect"
-                                            Command="{Binding InspectPartHistoryCommand}"
-                                            Style="{StaticResource ButtonStyle}"
-                                            Padding="12,6"
-                                            Margin="0"
-                                            Width="90"/>
+                                    <TextBox Width="170" Text="{Binding PartHistoryTrackingNumber, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
+                                    <Button Content="Inspect" Command="{Binding InspectPartHistoryCommand}" Style="{StaticResource ButtonStyle}" Padding="12,6" Margin="0" Width="90"/>
                                 </DockPanel>
                                 <TextBlock Text="{Binding PartHistoryStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0"/>
                                 <TextBlock Text="{Binding PartHistorySummary, Mode=OneWay}" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
                             </StackPanel>
 
-                            <DataGrid Grid.Row="3"
-                                      ItemsSource="{Binding PartHistoryEvents, Mode=OneWay}"
-                                      AutoGenerateColumns="False"
-                                      IsReadOnly="True"
-                                      HeadersVisibility="Column"
-                                      CanUserAddRows="False"
-                                      Margin="0,10,0,10"
-                                      Background="#1F1F20"
-                                      Foreground="#F0F0F0"
-                                      BorderBrush="#3F3F46"
-                                      BorderThickness="1">
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding PartHistoryEvents, Mode=OneWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" Margin="0,10,0,10" Background="#1F1F20" Foreground="#F0F0F0" BorderBrush="#3F3F46" BorderThickness="1">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Time" Binding="{Binding EventTime, Mode=OneWay}" Width="130"/>
                                     <DataGridTextColumn Header="Event" Binding="{Binding EventType, Mode=OneWay}" Width="110"/>
@@ -548,35 +382,31 @@
                                 </DataGrid.Columns>
                             </DataGrid>
 
-                            <Border Grid.Row="4" Background="#2D2D30" Padding="8" CornerRadius="4">
-                                <StackPanel>
-                                    <TextBlock Text="CSV Export" Foreground="#FFD700" FontWeight="Bold"/>
-                                    <DockPanel Margin="0,6,0,0">
-                                        <ComboBox Width="170"
-                                                  ItemsSource="{Binding ExportTables, Mode=OneWay}"
-                                                  SelectedItem="{Binding SelectedExportTable, Mode=TwoWay}"
-                                                  Margin="0,0,6,0"/>
-                                        <Button Content="Export Selected Table"
-                                                Command="{Binding ExportCsvCommand}"
-                                                Style="{StaticResource ButtonStyle}"
-                                                Padding="12,6"
-                                                Margin="0"
-                                                Width="170"/>
-                                    </DockPanel>
-                                    <TextBlock Text="{Binding CsvExportStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                                </StackPanel>
+                            <Border Grid.Row="2" Background="#2D2D30" Padding="8" CornerRadius="4">
+                                <DockPanel>
+                                    <ComboBox Width="170" ItemsSource="{Binding ExportTables, Mode=OneWay}" SelectedItem="{Binding SelectedExportTable, Mode=TwoWay}" Margin="0,0,6,0"/>
+                                    <Button Content="Export Selected Table" Command="{Binding ExportCsvCommand}" Style="{StaticResource ButtonStyle}" Padding="12,6" Margin="0" Width="170"/>
+                                </DockPanel>
                             </Border>
                         </Grid>
                     </TabItem>
                 </TabControl>
             </Border>
         </Grid>
-        
-        <!-- Footer -->
-        <Border Grid.Row="2" Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="0,2,0,0" Padding="10">
-            <TextBlock Text="Beckhoff XTS Simulation - Prime Mover Manufacturing System" 
-                       Foreground="#888888" 
-                       HorizontalAlignment="Center"/>
+
+        <Border Grid.Row="2" Background="#1F1F20" BorderBrush="#3F3F46" BorderThickness="0,2,0,0" Padding="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="EXECUTION LOGGER" Foreground="#FFD700" FontWeight="Bold" Margin="2,0,0,6"/>
+                <ListBox Grid.Row="1" ItemsSource="{Binding ExecutionLogs, Mode=OneWay}" Background="#252526" Foreground="#DCDCDC" BorderBrush="#3F3F46" BorderThickness="1" FontFamily="Consolas" FontSize="11" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3" Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="0,2,0,0" Padding="10">
+            <TextBlock Text="Beckhoff XTS Simulation - Prime Mover Manufacturing System" Foreground="#888888" HorizontalAlignment="Center"/>
         </Border>
     </Grid>
 </Window>

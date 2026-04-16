@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using XTSPrimeMoverProject.Models;
@@ -24,6 +25,8 @@ namespace XTSPrimeMoverProject.ViewModels
         public ObservableCollection<RobotViewModel> Robots { get; }
         public ObservableCollection<PartHistoryEventRecord> PartHistoryEvents { get; }
         public ObservableCollection<string> ExportTables { get; }
+        public ObservableCollection<string> ExecutionLogs { get; }
+        public ObservableCollection<WatchdogStatusItemViewModel> WatchdogStatuses { get; }
 
         public ICommand StartCommand { get; }
         public ICommand StopCommand { get; }
@@ -85,11 +88,14 @@ namespace XTSPrimeMoverProject.ViewModels
         public int PrimeMoverEnteredCount => _engine.PrimeMoverEnteredCount;
         public int PrimeMoverExitedCount => _engine.PrimeMoverExitedCount;
         public string DatabasePath => _engine.DatabasePath;
+        public bool EntryZoneBlink => _engine.EntryZoneBlink;
+        public bool ExitZoneBlink => _engine.ExitZoneBlink;
 
         public MainViewModel()
         {
             _engine = new XTSSimulationEngine();
             _engine.StateChanged += OnEngineStateChanged;
+            _engine.LogGenerated += OnEngineLogGenerated;
 
             _statusText = "SYSTEM STOPPED";
             _partHistoryTrackingNumber = string.Empty;
@@ -103,6 +109,8 @@ namespace XTSPrimeMoverProject.ViewModels
             Robots = new ObservableCollection<RobotViewModel>();
             PartHistoryEvents = new ObservableCollection<PartHistoryEventRecord>();
             ExportTables = new ObservableCollection<string>();
+            ExecutionLogs = new ObservableCollection<string>();
+            WatchdogStatuses = new ObservableCollection<WatchdogStatusItemViewModel>();
 
             StartCommand = new RelayCommand(Start, () => !IsRunning);
             StopCommand = new RelayCommand(Stop, () => IsRunning);
@@ -112,6 +120,7 @@ namespace XTSPrimeMoverProject.ViewModels
 
             InitializeViewModels();
             LoadExportTables();
+            RefreshWatchdogStatuses();
             UpdateStatus();
         }
 
@@ -206,6 +215,39 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
+        private void OnEngineLogGenerated(object? sender, string message)
+        {
+            ExecutionLogs.Add(message);
+            while (ExecutionLogs.Count > 400)
+            {
+                ExecutionLogs.RemoveAt(0);
+            }
+        }
+
+        private void RefreshWatchdogStatuses()
+        {
+            var latest = _engine.GetWatchdogStatus();
+
+            var snapshot = latest
+                .Select(x => new WatchdogStatusItemViewModel
+                {
+                    Code = x.Code,
+                    TriggerCount = x.TriggerCount,
+                    LastTriggeredAt = x.LastTriggeredAt,
+                    LastRecoveredObject = x.LastRecoveredObject,
+                    LastMessage = x.LastMessage
+                })
+                .OrderByDescending(x => x.LastTriggeredAt)
+                .ThenBy(x => x.Code)
+                .ToList();
+
+            WatchdogStatuses.Clear();
+            foreach (var row in snapshot)
+            {
+                WatchdogStatuses.Add(row);
+            }
+        }
+
         private void OnEngineStateChanged(object sender, EventArgs e)
         {
             foreach (var mvm in Movers)
@@ -223,6 +265,8 @@ namespace XTSPrimeMoverProject.ViewModels
                 rvm.Update();
             }
 
+            RefreshWatchdogStatuses();
+
             UpdateStatus();
             OnPropertyChanged(nameof(TotalPartsProduced));
             OnPropertyChanged(nameof(GoodPartsCount));
@@ -231,6 +275,8 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(PrimeMoverEnteredCount));
             OnPropertyChanged(nameof(PrimeMoverExitedCount));
             OnPropertyChanged(nameof(DatabasePath));
+            OnPropertyChanged(nameof(EntryZoneBlink));
+            OnPropertyChanged(nameof(ExitZoneBlink));
         }
 
         private void Start()
@@ -257,6 +303,8 @@ namespace XTSPrimeMoverProject.ViewModels
             PartHistoryStatus = "Enter a tracking number and click Inspect.";
             PartHistorySummary = "No part selected.";
             PartHistoryEvents.Clear();
+            ExecutionLogs.Clear();
+            RefreshWatchdogStatuses();
         }
 
         private void UpdateStatus()
@@ -290,5 +338,15 @@ namespace XTSPrimeMoverProject.ViewModels
             add { CommandManager.RequerySuggested += value; }
             remove { CommandManager.RequerySuggested -= value; }
         }
+    }
+
+    public class WatchdogStatusItemViewModel
+    {
+        public string Code { get; set; } = string.Empty;
+        public int TriggerCount { get; set; }
+        public DateTime LastTriggeredAt { get; set; }
+        public string LastTriggeredAtText => LastTriggeredAt == default ? "-" : LastTriggeredAt.ToString("HH:mm:ss");
+        public string LastRecoveredObject { get; set; } = "-";
+        public string LastMessage { get; set; } = string.Empty;
     }
 }

@@ -32,22 +32,53 @@ namespace XTSPrimeMoverProject
         {
             if (values[0] is double position)
             {
-                double centerX = 400;
-                double centerY = 350;
-                double radius = 250;
-                
-                double angleRadians = (position - 90) * Math.PI / 180.0;
-                
+                const double left = 130;
+                const double top = 140;
+                const double width = 740;
+                const double height = 300;
+
+                double r = height / 2.0;
+                double straight = width - 2.0 * r;
+                double arc = Math.PI * r;
+                double total = (2.0 * straight) + (2.0 * arc);
+
+                double s = (position / 360.0) * total;
+
+                double x;
+                double y;
+
+                if (s < straight)
+                {
+                    x = left + r + s;
+                    y = top;
+                }
+                else if (s < straight + arc)
+                {
+                    double t = (s - straight) / r;
+                    x = left + width - r + r * Math.Sin(t);
+                    y = top + r - r * Math.Cos(t);
+                }
+                else if (s < (2.0 * straight) + arc)
+                {
+                    double back = s - (straight + arc);
+                    x = left + width - r - back;
+                    y = top + height;
+                }
+                else
+                {
+                    double t = (s - ((2.0 * straight) + arc)) / r;
+                    x = left + r - r * Math.Sin(t);
+                    y = top + r + r * Math.Cos(t);
+                }
+
                 if (parameter?.ToString() == "X")
                 {
-                    return centerX + radius * Math.Cos(angleRadians) - 10;
+                    return x - 10;
                 }
-                else if (parameter?.ToString() == "Y")
-                {
-                    return centerY + radius * Math.Sin(angleRadians) - 10;
-                }
+
+                return y - 10;
             }
-            
+
             return 0.0;
         }
 

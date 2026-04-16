@@ -103,12 +103,21 @@ namespace XTSPrimeMoverProject.Models
 
         public bool CanAcceptPart()
         {
-            return IsOperational && (Stations.Count == 0 || Stations[0].Status == StationStatus.Idle);
+            if (!IsOperational)
+            {
+                return false;
+            }
+
+            // Current machine sequencing model supports one indexed part at a time.
+            // Prevent loading a new part until all stations are empty.
+            return Stations.TrueForAll(s => s.CurrentPart == null && s.Status == StationStatus.Idle);
         }
 
         public bool HasCompletedPartReady()
         {
-            return CurrentStationIndex == Stations.Count - 1 && Stations[CurrentStationIndex].Status == StationStatus.Complete;
+            return CurrentStationIndex == Stations.Count - 1
+                   && Stations[CurrentStationIndex].Status == StationStatus.Complete
+                   && Stations[CurrentStationIndex].CurrentPart != null;
         }
 
         public void LoadPart(Part part)
