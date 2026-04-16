@@ -19,6 +19,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private string _partHistorySummary;
         private string _selectedExportTable;
         private string _csvExportStatus;
+        private double _simulationSpeed;
 
         public ObservableCollection<MoverViewModel> Movers { get; }
         public ObservableCollection<MachineViewModel> Machines { get; }
@@ -91,6 +92,26 @@ namespace XTSPrimeMoverProject.ViewModels
         public bool EntryZoneBlink => _engine.EntryZoneBlink;
         public bool ExitZoneBlink => _engine.ExitZoneBlink;
 
+        public double SimulationSpeed
+        {
+            get => _simulationSpeed;
+            set
+            {
+                double clamped = Math.Clamp(value, 0.1, 5.0);
+                if (Math.Abs(_simulationSpeed - clamped) < 0.0001)
+                {
+                    return;
+                }
+
+                _simulationSpeed = clamped;
+                _engine.SetSimulationSpeed(_simulationSpeed);
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SimulationSpeedText));
+            }
+        }
+
+        public string SimulationSpeedText => $"Speed: {SimulationSpeed:F1}x";
+
         public MainViewModel()
         {
             _engine = new XTSSimulationEngine();
@@ -103,6 +124,7 @@ namespace XTSPrimeMoverProject.ViewModels
             _partHistorySummary = "No part selected.";
             _selectedExportTable = string.Empty;
             _csvExportStatus = "CSV export idle.";
+            _simulationSpeed = 1.0;
 
             Movers = new ObservableCollection<MoverViewModel>();
             Machines = new ObservableCollection<MachineViewModel>();
@@ -117,6 +139,8 @@ namespace XTSPrimeMoverProject.ViewModels
             ResetCommand = new RelayCommand(Reset);
             InspectPartHistoryCommand = new RelayCommand(InspectPartHistory);
             ExportCsvCommand = new RelayCommand(ExportCsv, () => !string.IsNullOrWhiteSpace(SelectedExportTable));
+
+            _engine.SetSimulationSpeed(_simulationSpeed);
 
             InitializeViewModels();
             LoadExportTables();
@@ -305,6 +329,7 @@ namespace XTSPrimeMoverProject.ViewModels
             PartHistoryEvents.Clear();
             ExecutionLogs.Clear();
             RefreshWatchdogStatuses();
+            _engine.SetSimulationSpeed(_simulationSpeed);
         }
 
         private void UpdateStatus()

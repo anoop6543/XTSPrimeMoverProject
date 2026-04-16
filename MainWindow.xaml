@@ -65,6 +65,15 @@
                 </StackPanel>
                 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Orientation="Vertical" Margin="10,0,10,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding SimulationSpeedText, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" HorizontalAlignment="Center"/>
+                        <Slider Width="140"
+                                Minimum="0.1"
+                                Maximum="5.0"
+                                Value="{Binding SimulationSpeed, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                TickFrequency="0.1"
+                                IsSnapToTickEnabled="True"/>
+                    </StackPanel>
                     <Button Content="START" Command="{Binding StartCommand}" Style="{StaticResource ButtonStyle}"/>
                     <Button Content="STOP" Command="{Binding StopCommand}" Style="{StaticResource ButtonStyle}" Background="#D83B01"/>
                     <Button Content="RESET" Command="{Binding ResetCommand}" Style="{StaticResource ButtonStyle}" Background="#107C10"/>
@@ -339,15 +348,95 @@
                                     </StackPanel>
                                 </Border>
 
+                                <TextBlock Text="COLOR + FLOW LEGEND" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
+                                <Border Background="#2D2D30" Padding="8" CornerRadius="4">
+                                    <StackPanel>
+                                        <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Yellow = BaseLayer (new part loaded, waiting for first machine)"/>
+                                        <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Orange = InProcess (between operations)"/>
+                                        <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Cyan = Assembled / intermediate stage"/>
+                                        <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Green = Good (final pass, exiting)"/>
+                                        <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Red = Bad (rejected/fault outcome)"/>
+                                        <TextBlock Foreground="#AAAAAA" FontSize="10" Margin="0,4,0,0" Text="AtLoadStation=waiting at machine interface; Loaded=queued behind upstream mover; AtUnloadStation=waiting for machine output transfer." TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="MOVER LIVE EXPLAINER" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
+                                <ItemsControl ItemsSource="{Binding Movers, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#2D2D30" Padding="6" Margin="0,2" CornerRadius="3" BorderBrush="#3F3F46" BorderThickness="1">
+                                                <StackPanel>
+                                                    <TextBlock>
+                                                        <Run Text="Mover " Foreground="#CCCCCC"/>
+                                                        <Run Text="{Binding MoverId, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
+                                                        <Run Text=" | " Foreground="#777"/>
+                                                        <Run Text="{Binding State, Mode=OneWay}" Foreground="#FFD700"/>
+                                                        <Run Text=" | Pos " Foreground="#777"/>
+                                                        <Run Text="{Binding PositionDeg, Mode=OneWay}" Foreground="#B5CEA8"/>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding TrackingNumber, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                                    <TextBlock Text="{Binding PartStatus, Mode=OneWay, StringFormat='Part State: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                                    <TextBlock Text="{Binding NextMachine, Mode=OneWay, StringFormat='Next Target: {0}'}" Foreground="#DCDCAA" FontSize="10"/>
+                                                    <TextBlock Text="{Binding TargetStation, Mode=OneWay, StringFormat='Dock Target: {0}'}" Foreground="#D7BA7D" FontSize="10"/>
+                                                    <TextBlock Text="{Binding FlowMeaning, Mode=OneWay, StringFormat='Meaning: {0}'}" Foreground="#B5CEA8" FontSize="10" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding WaitReason, Mode=OneWay, StringFormat='Wait/Move: {0}'}" Foreground="#CE9178" FontSize="10" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Text="MACHINE RUNTIME TRACKING" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
+                                <ItemsControl ItemsSource="{Binding Machines, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#2D2D30" Padding="8" Margin="0,3" CornerRadius="3" BorderBrush="#3F3F46" BorderThickness="1">
+                                                <StackPanel>
+                                                    <TextBlock>
+                                                        <Run Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
+                                                        <Run Text=" | PLC: " Foreground="#777"/>
+                                                        <Run Text="{Binding SequencerState, Mode=OneWay}" Foreground="#FFD700"/>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding RuntimeAction, Mode=OneWay, StringFormat='Action: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                                    <TextBlock Text="{Binding CurrentStation, Mode=OneWay, StringFormat='Station: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                                    <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#B5CEA8" FontSize="10"/>
+                                                    <TextBlock Text="{Binding CurrentStationEtPt, Mode=OneWay}" Foreground="#CE9178" FontSize="10"/>
+                                                    <TextBlock Text="{Binding FaultMessage, Mode=OneWay, StringFormat='Fault: {0}'}" Foreground="#CE9178" FontSize="10" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Text="ROBOT TRANSFERS" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
+                                <ItemsControl ItemsSource="{Binding Robots, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#2D2D30" Padding="8" Margin="0,2" CornerRadius="3" BorderBrush="#3F3F46" BorderThickness="1">
+                                                <StackPanel>
+                                                    <TextBlock>
+                                                        <Run Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
+                                                        <Run Text=" → M" Foreground="#CCCCCC"/>
+                                                        <Run Text="{Binding AssignedMachine, Mode=OneWay}" Foreground="#FFD700"/>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding State, Mode=OneWay, StringFormat='State: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                                    <TextBlock Text="{Binding HeldTrackingNumber, Mode=OneWay, StringFormat='Holding: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                                    <ProgressBar Value="{Binding Progress, Mode=OneWay}" Height="5" Margin="0,3,0,0" Background="#3F3F46" Foreground="#00B7C3"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
                                 <TextBlock Text="WATCHDOG STATUS" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
                                 <ItemsControl ItemsSource="{Binding WatchdogStatuses, Mode=OneWay}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#2D2D30" Padding="8" Margin="0,3" CornerRadius="3" BorderBrush="#3F3F46" BorderThickness="1">
                                                 <StackPanel>
-                                                    <TextBlock><Run Text="Code: "/><Run Text="{Binding Code}"/><Run Text=" | Count: "/><Run Text="{Binding TriggerCount}"/></TextBlock>
-                                                    <TextBlock><Run Text="Last Trigger: "/><Run Text="{Binding LastTriggeredAtText}"/><Run Text=" | Last Object: "/><Run Text="{Binding LastRecoveredObject}"/></TextBlock>
-                                                    <TextBlock Text="{Binding LastMessage, StringFormat='Message: {0}'}" Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
+                                                    <TextBlock><Run Text="Code: "/><Run Text="{Binding Code, Mode=OneWay}"/><Run Text=" | Count: "/><Run Text="{Binding TriggerCount, Mode=OneWay}"/></TextBlock>
+                                                    <TextBlock><Run Text="Last Trigger: "/><Run Text="{Binding LastTriggeredAtText, Mode=OneWay}"/><Run Text=" | Last Object: "/><Run Text="{Binding LastRecoveredObject, Mode=OneWay}"/></TextBlock>
+                                                    <TextBlock Text="{Binding LastMessage, Mode=OneWay, StringFormat='Message: {0}'}" Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>

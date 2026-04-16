@@ -28,11 +28,14 @@ namespace XTSPrimeMoverProject.Services
         private DateTime _lastUpdate;
         private readonly double[] _machineLoadAngles = { 45, 135, 225, 315 };
         private readonly double _exitAngle = 0;
+        private readonly double _entryLoadAngle = 205;
         private int _nextPartCounter;
         private int _trackingCounter;
         private int _snapshotTickCounter;
 
         private const double MoverMinGapDegrees = 16.0;
+        private const int MaxWipParts = 6;
+        private const int MinEmptyMoversToKeepCirculating = 4;
         private const double MachineStallThresholdSeconds = 14.0;
         private const double RobotStallThresholdSeconds = 9.0;
         private const double MoverStallThresholdSeconds = 11.0;
@@ -59,6 +62,7 @@ namespace XTSPrimeMoverProject.Services
 
         private double _entryZoneBlinkRemaining;
         private double _exitZoneBlinkRemaining;
+        private double _simulationSpeedFactor = 1.0;
 
         public XTSSimulationEngine()
         {
@@ -157,6 +161,7 @@ namespace XTSPrimeMoverProject.Services
             _dataLogger.SeedRecipes(Machines);
             _dataLogger.LogAlarm("Info", "Simulation", "System initialized", false);
             Log("Simulation initialized.");
+            Log("Flow mode: queued transfer (new parts can enter while upstream movers wait behind process bottlenecks).");
         }
 
         private void InitializeWatchdogs()
@@ -210,12 +215,17 @@ namespace XTSPrimeMoverProject.Services
             StateChanged?.Invoke(this, EventArgs.Empty);
         }
 
+        public void SetSimulationSpeed(double speedFactor)
+        {
+            _simulationSpeedFactor = Math.Clamp(speedFactor, 0.1, 5.0);
+        }
+
         private void OnTimerTick(object? sender, EventArgs e)
         {
             try
             {
                 DateTime now = DateTime.Now;
-                double deltaTime = (now - _lastUpdate).TotalSeconds;
+                double deltaTime = (now - _lastUpdate).TotalSeconds * _simulationSpeedFactor;
                 _lastUpdate = now;
 
                 Update(deltaTime);
@@ -304,7 +314,7 @@ namespace XTSPrimeMoverProject.Services
                     mover.TargetStation = -1;
                 }
 
-                if (IsTooCloseToMoverAhead(mover, MoverMinGapDegrees))
+                if (mover.CurrentPart != null && IsTooCloseToMoverAhead(mover, MoverMinGapDegrees))
                 {
                     holdAtStation = true;
                     if (mover.State == MoverState.Moving)
@@ -359,6 +369,12 @@ namespace XTSPrimeMoverProject.Services
 
         private void ProcessRobotLogic()
         {
+            bool anyMachineAccepting = Machines.Any(m => m.CanAcceptPart());
+            if (!anyMachineAccepting)
+            {
+                Log("All machines currently busy; movers will queue until a machine load slot opens.");
+            }
+
             for (int i = 0; i < Robots.Count; i++)
             {
                 var robot = Robots[i];
@@ -555,10 +571,22 @@ namespace XTSPrimeMoverProject.Services
                 return;
             }
 
+            int activePartCount = GetActiveParts().Count();
+            if (activePartCount >= MaxWipParts)
+            {
+                return;
+            }
+
+            int emptyMoverCount = Movers.Count(m => m.CurrentPart == null);
+            if (emptyMoverCount <= MinEmptyMoversToKeepCirculating)
+            {
+                return;
+            }
+
             var emptyMover = Movers.FirstOrDefault(m =>
                 m.CurrentPart == null &&
-                m.State != MoverState.AtLoadStation &&
-                m.State != MoverState.AtUnloadStation);
+                m.State == MoverState.Moving &&
+                m.IsAtStation(_entryLoadAngle, 9.0));
 
             if (emptyMover == null)
             {
@@ -584,7 +612,7 @@ namespace XTSPrimeMoverProject.Services
             Log($"{newPart.TrackingNumber} entered prime mover on mover {emptyMover.MoverId}");
             TriggerEntryZoneBlink();
 
-            _nextPartCounter = _random.Next(14, 35);
+            _nextPartCounter = _random.Next(10, 24);
         }
 
         private void TriggerEntryZoneBlink()
@@ -646,7 +674,8 @@ namespace XTSPrimeMoverProject.Services
         {
             WatchMachines(deltaTime);
             WatchRobots(deltaTime);
-            WatchMovers(deltaTime);
+            // In strict single-piece flow, avoid mover watchdog auto-recovery that can disturb queue behavior.
+            // WatchMovers(deltaTime);
         }
 
         private void WatchMachines(double deltaTime)

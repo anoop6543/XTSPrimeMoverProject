@@ -33,6 +33,18 @@ namespace XTSPrimeMoverProject.ViewModels
         public string FaultMessage => string.IsNullOrWhiteSpace(_machine.FaultMessage) ? "-" : _machine.FaultMessage;
         public double RotaryAngle => _machine.RotaryAngle;
 
+        public string RuntimeAction => FaultActive
+            ? "Faulted"
+            : IsIndexing
+                ? "Indexing to next station"
+                : CurrentPartId != "-"
+                    ? "Processing current station"
+                    : "Waiting for incoming part";
+
+        public string CurrentStationEtPt => _machine.CurrentStationIndex >= 0 && _machine.CurrentStationIndex < _machine.Stations.Count
+            ? $"ET/PT: {_machine.Stations[_machine.CurrentStationIndex].ElapsedTime:F2}/{_machine.Stations[_machine.CurrentStationIndex].ProcessTime:F2}s"
+            : "ET/PT: -";
+
         public ObservableCollection<StationViewModel> Stations { get; }
 
         public MachineViewModel(Machine machine)
@@ -60,6 +72,8 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(FaultActive));
             OnPropertyChanged(nameof(FaultMessage));
             OnPropertyChanged(nameof(RotaryAngle));
+            OnPropertyChanged(nameof(RuntimeAction));
+            OnPropertyChanged(nameof(CurrentStationEtPt));
 
             foreach (var station in Stations)
             {

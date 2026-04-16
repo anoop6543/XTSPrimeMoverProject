@@ -1,38 +1,36 @@
 # AGENTS.md - Copilot Working Context
 
-This file captures project-specific guidance for future AI coding sessions.
+This file is the persistent repo-level handoff context for future Copilot sessions.
 
 ## Project Identity
-- Name: XTSPrimeMoverProject
+- Name: `XTSPrimeMoverProject`
 - Type: WPF desktop simulation
-- Framework: .NET 10 (`net10.0-windows`)
+- Framework: `.NET 10` (`net10.0-windows`)
 - Language: C#
-- Architecture: Service-driven simulation + MVVM UI
+- Pattern: service-driven simulation + MVVM UI
 
-## Primary Objective
-Simulate a Beckhoff XTS prime mover manufacturing line with full traceability:
-- 10 movers
-- 4 machines with multi-station processing
-- 4 robots for mover↔machine transfer
-- part lifecycle from prime mover entry to good/bad exit
+## Current Runtime Capabilities
+- Beckhoff-style oval XTS visualization with entry/exit zones
+- 10 movers, 4 machines, 4 robots
+- 18 machine stations total
+- PLC-style machine sequencing and TON timeout supervision
+- Watchdog detection + controlled recovery/escalation
+- SQLite traceability and alarms
+- Operator-focused HMI with mover/machine/robot diagnostics
+- Execution logger panel and speed control slider
 
-## Current Reality (Important)
-1. **Machine operation logic is in services/models** (not in XAML).
-2. **UI is visualization layer only** with bindings/animations.
-3. **SQLite logging is enabled** via `SimulationDataLogger`.
-4. Part tracking is done with `TrackingNumber` (`TRK-xxxxx`) and rich events.
+## Core Runtime Files
+- Engine: `Services/XTSSimulationEngine.cs`
+- DB logger: `Services/SimulationDataLogger.cs`
+- PLC/Motion FBs:
+  - `Services/TwinCATMotionFunctionBlocks.cs`
+  - `Services/TwinCATPlcFunctionBlocks.cs`
+- Models: `Models/*.cs`
+- Main VM: `ViewModels/MainViewModel.cs`
+- Main UI: `MainWindow.xaml`
 
-## Key Files
-- Core engine: `Services/XTSSimulationEngine.cs`
-- Logging DB: `Services/SimulationDataLogger.cs`
-- Domain models: `Models/*.cs`
-- UI binding root: `ViewModels/MainViewModel.cs`
-- Main visualization: `MainWindow.xaml`
-- Architecture doc: `docs/ARCHITECTURE.md`
-- Product overview: `README.md`
-
-## Database Contract (SQLite)
-Tables currently expected:
+## DB Contract (current)
+Tables expected:
 - `Recipes`
 - `Parts`
 - `PartEvents`
@@ -42,31 +40,37 @@ Tables currently expected:
 - `ErrorLogs`
 - `Alarms`
 
-When extending logging/reporting, preserve this schema unless migration is intentional.
+Keep schema stable unless a migration is intentionally added.
 
 ## UI/Binding Safety Rules
-- Prefer `Mode=OneWay` for display bindings.
-- For animations, use named transforms (`Storyboard.TargetName`) to avoid immutable-object animation errors.
-- Escape XML special chars in XAML text (e.g., `&amp;`).
+- Prefer `Mode=OneWay` for read-only display bindings.
+- Treat `Run.Text` bindings as explicit `Mode=OneWay` unless edit-input is needed.
+- Keep process logic out of XAML/code-behind.
 
-## Simulation Behavior Expectations
-- Routing order: M0 → M1 → M2 → M3 → Exit.
-- Use `Part.NextMachineIndex` for deterministic machine targeting.
-- Keep counters consistent:
-  - prime mover entered/exited
-  - machine entered/exited
-  - good/bad/total
+## Working Assumptions
+- Routing order remains: `M0 -> M1 -> M2 -> M3 -> Exit`
+- `Part.NextMachineIndex` is the machine targeting source of truth.
+- Engine logs are operational diagnostics, not only dev traces.
 
-## Upcoming Planned Work
-1. Part History Inspector tab
-   - search by tracking number
-   - timeline from `PartEvents`
-2. CSV export from SQLite tables
-   - table selection + optional filters/date range
+## Handoff / Continue on Another Laptop
+1. Clone repo from GitHub.
+2. Open in Visual Studio with same GitHub/Copilot account.
+3. Read in order:
+   1) `README.md`
+   2) `docs/ARCHITECTURE.md`
+   3) `AGENTS.md`
+4. Build once before edits.
+5. Follow change order:
+   - Services/Models
+   - ViewModels
+   - XAML
+6. Build again before commit.
 
-## Change Strategy for Future Agents
-1. Read `README.md` and `docs/ARCHITECTURE.md` first.
-2. Keep simulation changes in `Services/` and `Models/`.
-3. Add/adjust ViewModel fields before touching XAML.
-4. Validate with `run_build` after edits.
-5. Avoid introducing UI-only logic that mutates machine process flow.
+## Copilot Continuity Note
+Copilot chat/session history is environment-scoped. Persistent continuity comes from committed source + docs in this repo. Keep these docs updated with behavior changes.
+
+## Current Priority Themes
+- queue behavior clarity and deadlock avoidance
+- machine transfer visibility and ET/PT diagnostics
+- watchdog transparency (codes/counters/last object/message)
+- maintain operator-grade HMI readability

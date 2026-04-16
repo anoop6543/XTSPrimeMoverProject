@@ -1,80 +1,56 @@
 # Beckhoff XTS Prime Mover Manufacturing Simulation
 
-## Overview
-This project simulates a Beckhoff XTS-based manufacturing line using WPF (.NET 10) with:
-- 10 XTS movers (prime mover track)
-- 4 machines (each with 4–5 stations)
-- 4 load/unload robots
-- End-to-end part lifecycle tracking (entry to final good/bad exit)
-- Local SQLite event/result logging
+WPF + .NET 10 simulation of a Beckhoff-style XTS transport line with service-driven logic, MVVM visualization, SQLite traceability, watchdog recovery, and operator-focused HMI diagnostics.
 
-The application now separates machine/line operation logic from visualization so the process engine is independent of WPF rendering.
+## Current Implemented Scope
 
----
+- .NET target: `net10.0-windows`
+- UI: WPF (MVVM)
+- Transport: 10 movers on oval/stadium XTS track visualization
+- Process cells: 4 machines (Laser Welder, Assembler, Inspector, Tester)
+- Transfers: 4 robots (mover ↔ machine)
+- Station chains: 18 total stations
+- Persistence: SQLite (`XTSFactorySim.db` in output path)
+- PLC/TwinCAT-style FBs:
+  - Motion FBs (`McPower`, `McMoveVelocity`, `McHalt`, `FbXtsMoverAxis`)
+  - Process FBs (`TON`, alarm latch, machine cycle sequencer)
 
-## Current Functional Scope
+## Runtime Behavior (as implemented)
 
-### Production Flow (Implemented)
-1. New part enters prime mover on an available mover with tracking number (`TRK-xxxxx`).
-2. Part routes through machines in order M0 → M1 → M2 → M3.
-3. Each machine processes part through internal stations.
-4. Robot transfers part back to mover.
-5. Final machine sets final quality state (`Good` / `Bad`).
-6. Part exits at prime mover exit zone and production counters update.
+- Deterministic routing: `M0 -> M1 -> M2 -> M3 -> Exit`
+- Machine sequencer states: `Init`, `Ready`, `Run`, `Fault`, `Reset`
+- ET/PT timeout supervision per station (TON)
+- Queue spacing on movers to reduce overlap/stacking
+- Entry/Exit zone blink indicators tied to real load/unload events
+- Watchdog supervision + controlled recovery:
+  - machine stall
+  - robot stall
+  - mover stall
+  - rehome/scrap fallback + root-cause alarm codes
 
-### Machine and Station Definitions (Implemented)
-- **M0: Laser Welder** (4 stations)
-- **M1: Precision Assembly** (5 stations)
-- **M2: Quality Inspection** (4 stations)
-- **M3: Functional Testing** (5 stations)
+## HMI / Operator Diagnostics
 
-Total configured stations across the line: **18**.
+### Main visualization
+- Beckhoff-like oval track with lane markings, seams/module look
+- Entry / Load and Exit / Unload zones with live blinkers
+- Machine mini-HMIs on main canvas with PLC state + indexing
 
-### Quality / Defect Logic (Implemented)
-- Each station has defect probability.
-- Defect flags accumulate through process.
-- Final result mapped to Good/Bad and logged.
+### Line HMI (right panel)
+- Production counters and yield
+- Color/flow legend (what yellow/BaseLayer means, etc.)
+- Mover live explainer:
+  - state, part, next target, wait reason, position
+- Machine runtime tracking:
+  - action, station, part, ET/PT, fault text
+- Robot transfer status and progress
+- Watchdog status table (code/count/last object/time/message)
 
----
+### Execution Logger (bottom)
+- Scrollable runtime log stream for movement, transfers, alarms, recoveries
 
-## Visualization and HMI (Implemented)
+## SQLite Logging
 
-### Main Track View
-- Circular prime mover visualization
-- Color-coded mover node states
-- Inline mover ID + short tracking display
-- Tooltip with full part tracking number
-
-### Operator Information Panel
-- Prime mover entered/exited counters
-- Good/Bad counters and yield
-- Detailed mover part status:
-  - Tracking number
-  - Part status
-  - Next machine target
-  - Current location
-  - Completion progress
-
-### Machine Mini-HMI
-For each machine:
-- Current station index/task
-- Current part tracking
-- Entered/Exited throughput counters
-- Rotary station visualization with animation
-- Station list with live status and part ID
-
-### Robot Transfer Panel
-- Robot state
-- Assigned machine
-- Currently held part tracking ID
-
----
-
-## Data Logging (SQLite) (Implemented)
-A local SQLite database is created automatically:
-- Default file: `XTSFactorySim.db` (application output folder)
-
-### Tables
+Tables currently used:
 - `Recipes`
 - `Parts`
 - `PartEvents`
@@ -84,49 +60,42 @@ A local SQLite database is created automatically:
 - `ErrorLogs`
 - `Alarms`
 
-### Logged Data
-- Recipe/station seed data
-- Part creation and prime mover entry/exit
-- Machine entry/exit per part
-- Station/process events and timeline
-- Good/Bad final results
-- Periodic production snapshots
-- Runtime errors and alarms
-
----
-
-## Architecture Summary
-
-- **Models/**: domain objects (Part, Mover, Station, Machine, Robot)
-- **Services/**:
-  - `XTSSimulationEngine` — process orchestration and routing
-  - `SimulationDataLogger` — SQLite persistence and event logging
-- **ViewModels/**: UI-facing projections and calculated display values
-- **MainWindow.xaml**: visualization-only concerns and data binding
-
-The process simulation is service-driven and not coupled to WPF visual state transitions.
-
-For more detail, see `docs/ARCHITECTURE.md`.
-
----
-
 ## Build / Run
-- Target framework: `net10.0-windows`
-- Start app from Visual Studio (F5)
-- Controls: **START / STOP / RESET**
 
----
+1. Open solution in Visual Studio 2026+.
+2. Restore/build (`Debug | Any CPU`).
+3. Run with `F5`.
+4. Use header controls:
+   - `START`
+   - `STOP`
+   - `RESET`
+   - Speed slider (`0.1x` .. `5.0x`)
 
-## Next Planned Enhancements
-1. **Part History Inspector tab** (query/search timeline by tracking ID)
-2. **CSV export** from SQLite tables (selectable tables/date range)
-3. Additional operational analytics dashboards
+## Continue Development on Another Laptop (Copilot-friendly)
 
----
+1. Clone repo:
+   - `git clone https://github.com/anoop6543/XTSPrimeMoverProject`
+2. Open in Visual Studio with same GitHub account used for Copilot.
+3. Ensure Copilot is enabled in VS.
+4. Read these first:
+   - `README.md`
+   - `docs/ARCHITECTURE.md`
+   - `AGENTS.md`
+5. Build once before edits.
+6. Prefer service/model changes first, then ViewModel, then XAML.
 
-## Tech Stack
-- C#
-- WPF
-- .NET 10
-- MVVM
-- Microsoft.Data.Sqlite
+### About “Copilot history retained”
+- Retain history context by committing/pushing project docs (`README`, `ARCHITECTURE`, `AGENTS`) and code changes.
+- Use same GitHub account + same repo branch context.
+- Chat/session history itself is environment-dependent; the canonical persistent context for future Copilot runs is the repo content and these docs.
+
+## Key Files
+
+- Engine: `Services/XTSSimulationEngine.cs`
+- Logging: `Services/SimulationDataLogger.cs`
+- PLC/Motion FBs: `Services/TwinCAT*.cs`
+- Models: `Models/*.cs`
+- View root: `ViewModels/MainViewModel.cs`
+- Main UI: `MainWindow.xaml`
+- Architecture: `docs/ARCHITECTURE.md`
+- Agent context: `AGENTS.md`

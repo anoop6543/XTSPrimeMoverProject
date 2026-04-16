@@ -1,106 +1,122 @@
 # XTS Prime Mover Simulation - Architecture
 
 ## 1. Purpose
-This document describes the current architecture of the XTS prime mover simulation after recent upgrades (tracking, machine throughput visibility, and SQLite persistence).
+This document describes the current architecture of the Beckhoff-style XTS simulation after iterative upgrades to:
+- PLC-style machine control
+- mover queue behavior
+- watchdog self-recovery
+- operator diagnostics/HMI explainability
+- SQLite traceability
 
 ---
 
 ## 2. High-Level Design
 
-The solution follows a **service-driven simulation + MVVM visualization** architecture.
-
-- **Simulation Layer (independent of WPF rendering)**
-  - Owns timing, routing, machine logic, robot transfers, station progression, defects, and lifecycle state.
-- **Persistence Layer**
-  - Captures recipes, events, results, snapshots, alarms, and errors in SQLite.
-- **Presentation Layer (WPF + ViewModels)**
-  - Displays state from ViewModels only; does not drive core manufacturing logic.
+The solution follows **service-driven simulation + MVVM visualization**.
 
 ```text
-MainWindow (View)
-   ↕ data binding
-ViewModels (Main/Mover/Machine/Station/Robot)
-   ↕ projection of model/service state
-Services (XTSSimulationEngine, SimulationDataLogger)
-   ↕ domain operations + persistence
-Models (Part, Mover, Machine, Station, Robot)
+MainWindow (View / visualization)
+   ↕ binding
+ViewModels (Main, Mover, Machine, Station, Robot)
+   ↕ projection only
+Services (XTSSimulationEngine, SimulationDataLogger, PLC/Motion FBs)
+   ↕ orchestration + persistence
+Models (Part, Mover, Robot, Machine, Station)
 ```
 
----
-
-## 3. Core Components
-
-## 3.1 Models
-### `Part`
-Tracks lifecycle and traceability:
-- `PartId`, `TrackingNumber`
-- `Status` (BaseLayer/InProcess/Assembled/Tested/Good/Bad)
-- `EnteredPrimeMoverAt`, `ExitedPrimeMoverAt`
-- `NextMachineIndex`
-- `CompletedStations`
-- `CurrentLocation`
-- process history entries
-
-### `Mover`
-Represents one XTS shuttle:
-- angular track position
-- movement state
-- loaded part reference
-- target station context
-
-### `Machine`
-Represents a machine cell with station chain:
-- machine metadata and load angle
-- internal stations (4–5 per machine)
-- throughput counters (`PartsEnteredCount`, `PartsExitedCount`)
-- station advancement + completed-part readiness
-
-### `Station`
-Represents a machine process step:
-- station type, process time, defect rate
-- processing state and elapsed time
-- increments part completion and logs process step on completion
-
-### `Robot`
-Represents machine entry/exit transfer robot:
-- transfer state machine
-- held part
-- timed action progression
+Core rule: process logic remains in Services/Models, not XAML.
 
 ---
 
-## 3.2 Services
+## 3. Layers
+
+## 3.1 Domain Models
+- `Part`: lifecycle, tracking, status, history, routing (`NextMachineIndex`)
+- `Mover`: carrier position/state/target station/loaded part
+- `Robot`: transfer state machine with timed action progression
+- `Machine`: station chain + sequencer-related status fields
+- `Station`: processing state, ET/PT timing, defect probability
+
+## 3.2 Service Layer
 
 ### `XTSSimulationEngine`
-Primary process orchestrator.
-Responsibilities:
-- periodic update loop (`DispatcherTimer`)
-- mover position/state updates
-- robot step execution
-- machine station advancement
-- deterministic routing (M0→M1→M2→M3→Exit)
-- prime mover entry/exit accounting
-- part status transitions and final quality outcome
-- event snapshot cadence
-- error capture and controlled stop
+Owns runtime orchestration:
+- timer-driven updates
+- mover state transitions + queue spacing
+- robot transfers (mover↔machine)
+- machine cycle execution via FBs
+- part loading/unloading/exit accounting
+- watchdog detection + controlled recovery
+- execution logging events
+- zone activity blink triggers (entry/exit)
+- simulation speed scaling
 
-Notable exposed metrics:
-- `PrimeMoverEnteredCount`
-- `PrimeMoverExitedCount`
-- `GoodPartsCount`, `BadPartsCount`, `TotalPartsProduced`
-- `TotalStationCount`
-- `DatabasePath`
+### PLC/Motion Function Blocks
+- `Services/TwinCATMotionFunctionBlocks.cs`
+  - `McPowerFb`, `McMoveVelocityFb`, `McHaltFb`, `FbXtsMoverAxis`
+- `Services/TwinCATPlcFunctionBlocks.cs`
+  - `TonFb`, `AlarmLatchFb`, `FbMachineCycle`
+
+Machine sequencer states:
+- `Init`, `Ready`, `Run`, `Fault`, `Reset`
+
+### Watchdog behavior
+Root-cause codes and counters are tracked and exposed:
+- machine stall codes
+- robot stall codes
+- mover stall codes
+- rehome/scrap events
 
 ### `SimulationDataLogger`
-SQLite adapter for structured local data capture.
-Responsibilities:
-- database/file initialization
-- table creation
-- recipe seeding
-- part/machine/result/event persistence
-- snapshots, alarms, and errors
+SQLite persistence for events/results/alarms/errors/snapshots.
 
-Database tables:
+## 3.3 Presentation Layer
+
+### ViewModels
+- `MainViewModel`: runtime composition root; commands; aggregate metrics; speed control; watchdog status feed
+- `MoverViewModel`: operator explanation fields (`FlowMeaning`, `WaitReason`, target info)
+- `MachineViewModel`: action and ET/PT summaries
+- `StationViewModel`: per-station ET/PT diagnostics
+- `RobotViewModel`: transfer state and progress
+
+### MainWindow.xaml
+- Beckhoff-like oval track rendering (lane/seam aesthetics)
+- machine mini-HMIs near track
+- entry/load and exit/unload zones + blinkers
+- right-side Line HMI diagnostics sections
+- bottom execution logger
+
+---
+
+## 4. Runtime Sequence (current)
+
+1. Eligible empty mover reaches entry zone.
+2. New part loads onto mover (subject to WIP/empty-carrier constraints).
+3. Mover queues/travels to target machine load interface.
+4. Robot transfers part into machine.
+5. Machine station chain processes and indexes through steps.
+6. Robot returns processed part to mover.
+7. Route continues until M3 completion.
+8. Final quality determines Good/Bad exit.
+9. Exit zone discharge updates counters/results/logs.
+
+---
+
+## 5. Observability / Debug Capability
+
+Implemented operator debug signals:
+- mover explanation text for wait/flow reason
+- machine action + ET/PT snapshot
+- station ET/PT details
+- execution logger stream
+- watchdog status panel (count, last object, last trigger/message)
+- entry/exit activity blink indicators
+
+---
+
+## 6. Persistence Contract
+
+Current tables:
 - `Recipes`
 - `Parts`
 - `PartEvents`
@@ -110,75 +126,24 @@ Database tables:
 - `ErrorLogs`
 - `Alarms`
 
----
-
-## 3.3 ViewModels
-
-### `MainViewModel`
-Application composition root for the UI:
-- wires commands (`Start`, `Stop`, `Reset`)
-- tracks aggregate counters/yield
-- exposes DB path and global status
-- propagates tick updates to child viewmodels
-
-### `MoverViewModel`
-Operator-friendly mover tracking:
-- tracking number and short tracking
-- next machine
-- current location
-- completion percentage
-
-### `MachineViewModel`
-Machine HMI projection:
-- current station
-- current part tracking
-- progress
-- throughput in/out
-- station viewmodel collection
-
-### `StationViewModel`
-Station-level display:
-- station task/type/status
-- station part tracking
-- active-index indication
-
-### `RobotViewModel`
-Robot transfer visibility:
-- transfer state
-- held part tracking
-- progress
+Schema changes should be treated as explicit migrations.
 
 ---
 
-## 4. Runtime Flow
+## 7. Continuation Rules (multi-machine/dev handoff)
 
-1. Engine creates part and assigns mover.
-2. Part routed to target machine via `NextMachineIndex`.
-3. Robot unloads from mover and loads machine station 0.
-4. Machine stations process sequentially.
-5. Robot unloads completed machine part and reloads mover.
-6. Final machine sets Good/Bad.
-7. Part exits at designated prime mover exit angle.
-8. Engine updates counters and logs final result.
+1. Read `README.md`, this file, then `AGENTS.md`.
+2. Keep process logic in `Services/` and `Models/`.
+3. Add ViewModel fields before changing XAML bindings.
+4. For read-only display values, use `Mode=OneWay` in XAML.
+5. Always validate with build before commit.
+6. Keep logs and watchdog messages operator-readable.
 
 ---
 
-## 5. Separation of Concerns Rules
+## 8. Next Practical Enhancements
 
-- **Do not move process logic into XAML/UI code-behind.**
-- XAML should remain display/animation/data-binding only.
-- Engine and models must remain testable without WPF visual tree.
-- Persistence concerns stay in `SimulationDataLogger` (or repository/service abstractions under `Services`).
-
----
-
-## 6. Known Next Steps (Planned)
-
-1. Part History Inspector tab:
-   - query by tracking number
-   - timeline view from `PartEvents`
-   - machine/station/result summary
-2. CSV export:
-   - export selectable tables
-   - optional date range and filters
-   - output path selection
+- formal queue visualization (distance-to-next mover)
+- optional step-through mode (single update tick advance)
+- watchdog analytics trend tab
+- automated regression tests for deadlock/stall scenarios
