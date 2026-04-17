@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Data.Sqlite;
 using XTSPrimeMoverProject.Models;
 
@@ -387,6 +388,91 @@ LIMIT 1;";
             return AllowedTables.OrderBy(t => t).ToList();
         }
 
+        public List<string> GetAllTables()
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = @"
+SELECT name
+FROM sqlite_master
+WHERE type='table'
+  AND name NOT LIKE 'sqlite_%'
+ORDER BY name;";
+
+            var result = new List<string>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(reader["name"]?.ToString() ?? string.Empty);
+            }
+
+            return result.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        }
+
+        public List<string> GetTableColumns(string tableName)
+        {
+            ValidateTableName(tableName);
+
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = $"PRAGMA table_info({tableName});";
+
+            var columns = new List<string>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                columns.Add(reader["name"]?.ToString() ?? string.Empty);
+            }
+
+            return columns.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+        }
+
+        public int GetTableRowCount(string tableName)
+        {
+            ValidateTableName(tableName);
+
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = $"SELECT COUNT(*) FROM {tableName};";
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
+        public List<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500)
+        {
+            ValidateTableName(tableName);
+
+            int safeMaxRows = Math.Clamp(maxRows, 1, 5000);
+
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = $"SELECT * FROM {tableName} LIMIT {safeMaxRows};";
+
+            var rows = new List<Dictionary<string, string>>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    string key = reader.GetName(i);
+                    string value = reader.IsDBNull(i) ? string.Empty : reader.GetValue(i)?.ToString() ?? string.Empty;
+                    row[key] = value;
+                }
+
+                rows.Add(row);
+            }
+
+            return rows;
+        }
+
         public string ExportTableToCsv(string tableName, string? exportDirectory = null)
         {
             if (!AllowedTables.Contains(tableName))
@@ -444,6 +530,14 @@ LIMIT 1;";
             }
 
             return input;
+        }
+
+        private static void ValidateTableName(string tableName)
+        {
+            if (string.IsNullOrWhiteSpace(tableName) || !Regex.IsMatch(tableName, "^[A-Za-z0-9_]+$"))
+            {
+                throw new InvalidOperationException("Invalid table name.");
+            }
         }
     }
 

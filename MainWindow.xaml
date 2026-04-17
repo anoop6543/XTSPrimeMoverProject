@@ -88,12 +88,14 @@
                 <ColumnDefinition Width="350"/>
             </Grid.ColumnDefinitions>
             
-            <!-- XTS Visualization -->
-            <Border Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Margin="0,0,5,0">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Auto"
-                              CanContentScroll="False"
-                              Padding="6">
+            <!-- Left Panel Tabs: XTS + DB Viewer -->
+            <TabControl Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="2" Margin="0,0,5,0">
+                <TabItem Header="XTS Visualization">
+                    <Border Background="#252526" BorderBrush="#3F3F46" BorderThickness="0" CornerRadius="5" Margin="0">
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto"
+                                      CanContentScroll="False"
+                                      Padding="6">
                     <Grid Width="1040" Height="760" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Canvas x:Name="XTSCanvas" Width="1040" Height="760" ClipToBounds="False">
                             <!-- XTS Track (oval/stadium style, Beckhoff-like detailing) -->
@@ -328,8 +330,96 @@
                             </ItemsControl>
                         </Canvas>
                     </Grid>
-                </ScrollViewer>
-            </Border>
+                        </ScrollViewer>
+                    </Border>
+                </TabItem>
+
+                <TabItem Header="DB Tables Viewer">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="RUNTIME DATABASE TABLES" Style="{StaticResource HeaderTextStyle}"/>
+                            <DockPanel Margin="0,6,0,0">
+                                <ComboBox Width="220"
+                                          ItemsSource="{Binding DbTables, Mode=OneWay}"
+                                          SelectedItem="{Binding SelectedDbTable, Mode=TwoWay}"
+                                          Margin="0,0,8,0"/>
+                                <Button Content="Refresh Tables"
+                                        Command="{Binding RefreshDbTablesCommand}"
+                                        Style="{StaticResource ButtonStyle}"
+                                        Padding="12,6"
+                                        Margin="0"
+                                        Width="130"/>
+                            </DockPanel>
+                            <TextBox Margin="0,6,0,0"
+                                     Height="28"
+                                     Text="{Binding DbTableSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Foreground="#F0F0F0"
+                                     Background="#1F1F20"
+                                     BorderBrush="#3F3F46"
+                                     BorderThickness="1"
+                                     VerticalContentAlignment="Center"
+                                     Padding="6,0"
+                                     ToolTip="Quick filter across all columns"/>
+                            <TextBlock Text="{Binding DbTableStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding DbTableRowsView, Mode=OneWay}"
+                                  AutoGenerateColumns="True"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  Margin="0,10,0,0"
+                                  Background="#1F1F20"
+                                  Foreground="#F0F0F0"
+                                  BorderBrush="#3F3F46"
+                                  BorderThickness="1"
+                                  RowBackground="#1F1F20"
+                                  AlternatingRowBackground="#252526"
+                                  HorizontalGridLinesBrush="#3F3F46"
+                                  VerticalGridLinesBrush="#3F3F46"
+                                  HeadersVisibility="All"
+                                  GridLinesVisibility="All"
+                                  SelectionUnit="FullRow"
+                                  FrozenColumnCount="1"
+                                  ColumnWidth="SizeToHeader"
+                                  MinColumnWidth="110">
+                            <DataGrid.Resources>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#2D2D30"/>
+                                    <Setter Property="Foreground" Value="#FFD700"/>
+                                    <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Padding" Value="6,4"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                </Style>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="#1F1F20"/>
+                                    <Setter Property="Foreground" Value="#F0F0F0"/>
+                                    <Setter Property="BorderBrush" Value="#3F3F46"/>
+                                    <Setter Property="BorderThickness" Value="0.5"/>
+                                    <Setter Property="Padding" Value="4,2"/>
+                                </Style>
+                                <Style TargetType="DataGridRow">
+                                    <Setter Property="Background" Value="#1F1F20"/>
+                                    <Setter Property="Foreground" Value="#F0F0F0"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#094771"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.Resources>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+            </TabControl>
 
             <Border Grid.Column="1" Background="#252526" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5">
                 <TabControl Background="#252526" BorderThickness="0">
@@ -446,6 +536,115 @@
                         </ScrollViewer>
                     </TabItem>
 
+                    <TabItem Header="Orchestration Editor">
+                        <Grid Margin="10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel>
+                                <TextBlock Text="SAFE ORCHESTRATION EDITOR" Style="{StaticResource HeaderTextStyle}"/>
+                                <TextBlock Text="Edit machine order, then apply only when simulation is stopped. Interlocks enforce safe apply gates." Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding OrchestrationStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding OrchestrationValidationStatus, Mode=OneWay}" Foreground="#DCDCAA" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <DataGrid Grid.Row="1"
+                                      ItemsSource="{Binding OrchestrationSteps, Mode=OneWay}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      CanUserAddRows="False"
+                                      Margin="0,10,0,10"
+                                      Background="#1F1F20"
+                                      Foreground="#F0F0F0"
+                                      BorderBrush="#3F3F46"
+                                      BorderThickness="1">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Step" Binding="{Binding OrderText, Mode=OneWay}" Width="80"/>
+                                    <DataGridTextColumn Header="Machine ID" Binding="{Binding MachineId, Mode=OneWay}" Width="90"/>
+                                    <DataGridTextColumn Header="Machine" Binding="{Binding MachineName, Mode=OneWay}" Width="*"/>
+                                    <DataGridComboBoxColumn Header="Output Status"
+                                                            Width="150"
+                                                            SelectedItemBinding="{Binding OutputStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                            ItemsSource="{Binding DataContext.OrchestrationOutputStatusOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                    <DataGridTemplateColumn Header="Move" Width="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="↑"
+                                                            Width="36"
+                                                            Margin="0,0,4,0"
+                                                            Command="{Binding DataContext.MoveOrchestrationStepUpCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource ButtonStyle}"
+                                                            Padding="4,2"/>
+                                                    <Button Content="↓"
+                                                            Width="36"
+                                                            Command="{Binding DataContext.MoveOrchestrationStepDownCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource ButtonStyle}"
+                                                            Padding="4,2"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <StackPanel Grid.Row="2">
+                                <TextBlock Text="SAFETY GATES" Foreground="#FFD700" FontWeight="Bold" FontSize="11" Margin="0,0,0,4"/>
+                                <ItemsControl ItemsSource="{Binding SafetyGates, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,1">
+                                                <DockPanel>
+                                                    <TextBlock Text="●" Foreground="{Binding GateColor, Mode=OneWay}" FontSize="14" Margin="0,0,6,0"/>
+                                                    <StackPanel>
+                                                        <TextBlock>
+                                                            <Run Text="{Binding GateName, Mode=OneWay}" Foreground="#F0F0F0" FontWeight="SemiBold"/>
+                                                            <Run Text=" - " Foreground="#888"/>
+                                                            <Run Text="{Binding GateStateText, Mode=OneWay}" Foreground="{Binding GateColor, Mode=OneWay}" FontWeight="Bold"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Detail, Mode=OneWay}" Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <DockPanel Margin="0,8,0,0">
+                                    <Button Content="Reload Current"
+                                            Command="{Binding ReloadOrchestrationCommand}"
+                                            Style="{StaticResource ButtonStyle}"
+                                            Padding="12,6"
+                                            Margin="0,0,8,0"
+                                            Width="130"/>
+                                    <Button Content="Preview Validation"
+                                            Command="{Binding PreviewOrchestrationValidationCommand}"
+                                            Style="{StaticResource ButtonStyle}"
+                                            Padding="12,6"
+                                            Margin="0,0,8,0"
+                                            Width="160"/>
+                                    <Button Content="Refresh Safety Gates"
+                                            Command="{Binding RefreshSafetyGatesCommand}"
+                                            Style="{StaticResource ButtonStyle}"
+                                            Padding="12,6"
+                                            Margin="0,0,8,0"
+                                            Width="170"/>
+                                    <Button Content="Apply Orchestration"
+                                            Command="{Binding ApplyOrchestrationCommand}"
+                                            Style="{StaticResource ButtonStyle}"
+                                            Padding="12,6"
+                                            Margin="0"
+                                            Width="170"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Grid>
+                    </TabItem>
+
                     <TabItem Header="Part History Inspector">
                         <Grid Margin="10">
                             <Grid.RowDefinitions>
@@ -479,6 +678,8 @@
                             </Border>
                         </Grid>
                     </TabItem>
+
+
                 </TabControl>
             </Border>
         </Grid>

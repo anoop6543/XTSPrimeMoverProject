@@ -11,12 +11,14 @@ namespace XTSPrimeMoverProject.Services
         private readonly DispatcherTimer _timer;
         private readonly Random _random;
         private readonly SimulationDataLogger _dataLogger;
+        private ProductionOrchestration _orchestration;
 
         private readonly Dictionary<Guid, int> _partHistoryLogIndex;
         private readonly Dictionary<int, FbXtsMoverAxis> _moverAxes;
         private readonly Dictionary<int, FbMachineCycle> _machineCycles;
         private readonly Dictionary<int, bool> _machineAlarmStates;
         private readonly Dictionary<int, MoverState> _lastMoverStates;
+        private readonly Dictionary<int, double> _machineLoadAngleByMachineId;
 
         private readonly Dictionary<int, double> _machineWatchSeconds;
         private readonly Dictionary<int, string> _machineWatchSignature;
@@ -59,6 +61,7 @@ namespace XTSPrimeMoverProject.Services
         public event EventHandler<string>? LogGenerated;
 
         private readonly Dictionary<string, WatchdogStatusEntry> _watchdogStatus;
+        private OrchestrationProfile _lastKnownGoodOrchestration;
 
         private double _entryZoneBlinkRemaining;
         private double _exitZoneBlinkRemaining;
@@ -83,6 +86,9 @@ namespace XTSPrimeMoverProject.Services
             _moverWatchSignature = new Dictionary<int, string>();
 
             _watchdogStatus = new Dictionary<string, WatchdogStatusEntry>(StringComparer.OrdinalIgnoreCase);
+            _machineLoadAngleByMachineId = new Dictionary<int, double>();
+            _orchestration = new ProductionOrchestration(Array.Empty<Machine>());
+            _lastKnownGoodOrchestration = _orchestration.ActiveProfile;
 
             InitializeSystem();
 
@@ -93,6 +99,10 @@ namespace XTSPrimeMoverProject.Services
         public IReadOnlyList<PartHistoryEventRecord> GetPartHistory(string trackingNumber) => _dataLogger.GetPartHistory(trackingNumber);
         public PartSummaryRecord? GetPartSummary(string trackingNumber) => _dataLogger.GetPartSummary(trackingNumber);
         public IReadOnlyList<string> GetExportableTables() => _dataLogger.GetExportableTables();
+        public IReadOnlyList<string> GetAllTables() => _dataLogger.GetAllTables();
+        public IReadOnlyList<string> GetTableColumns(string tableName) => _dataLogger.GetTableColumns(tableName);
+        public int GetTableRowCount(string tableName) => _dataLogger.GetTableRowCount(tableName);
+        public IReadOnlyList<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500) => _dataLogger.GetTableRows(tableName, maxRows);
         public string ExportTableToCsv(string tableName, string? exportDirectory = null) => _dataLogger.ExportTableToCsv(tableName, exportDirectory);
         public string GetDefaultExportDirectory() => System.IO.Path.Combine(AppContext.BaseDirectory, "Exports");
 
@@ -102,6 +112,125 @@ namespace XTSPrimeMoverProject.Services
                 .OrderByDescending(x => x.LastTriggeredAt)
                 .ThenBy(x => x.Code)
                 .ToList();
+        }
+
+        public IReadOnlyList<ProductionSequenceStep> GetOrchestrationSteps() => _orchestration.Steps;
+
+        public bool TryApplyOrchestration(IReadOnlyList<int> orderedMachineIds, out string message)
+        {
+            var stepDefs = orderedMachineIds
+                .Select((machineId, idx) => new OrchestrationStepDefinition
+                {
+                    MachineId = machineId,
+                    OutputStatus = idx == orderedMachineIds.Count - 1 ? PartStatus.Good : PartStatus.InProcess
+                })
+                .ToList();
+
+            return TryApplyOrchestration(stepDefs, out message);
+        }
+
+        public bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message)
+        {
+            if (stepDefinitions == null || stepDefinitions.Count == 0)
+            {
+                message = "Orchestration apply rejected: sequence is empty.";
+                return false;
+            }
+
+            if (!CanSafelyApplyOrchestration(out string interlockReason))
+            {
+                message = $"Orchestration apply rejected by interlocks: {interlockReason}";
+                _dataLogger.LogAlarm("Warning", "Orchestration", message, true);
+                Log(message);
+                return false;
+            }
+
+            var candidate = _orchestration.CreateProfile(
+                stepDefinitions,
+                name: "HMI-Edited",
+                version: _orchestration.ActiveProfile.Version + 1);
+
+            var previousProfile = _orchestration.ActiveProfile.Clone(_orchestration.ActiveProfile.Name, _orchestration.ActiveProfile.Version);
+
+            if (!_orchestration.TrySetProfile(candidate, out var errors))
+            {
+                _orchestration.TrySetProfile(_lastKnownGoodOrchestration, out _);
+                message = "Orchestration validation failed: " + string.Join(" | ", errors);
+                _dataLogger.LogAlarm("Warning", "Orchestration", message, true);
+                Log(message);
+                return false;
+            }
+
+            _lastKnownGoodOrchestration = previousProfile;
+
+            var orderedMachineIds = stepDefinitions.Select(s => s.MachineId).ToList();
+            foreach (var robot in Robots)
+            {
+                if (!orderedMachineIds.Contains(robot.AssignedMachineId))
+                {
+                    robot.AssignedMachineId = orderedMachineIds.First();
+                }
+            }
+
+            message = $"Orchestration applied successfully: {_orchestration.DescribeFlow()}";
+            _dataLogger.LogAlarm("Info", "Orchestration", message, false);
+            Log(message);
+            return true;
+        }
+
+        public IReadOnlyList<string> PreviewOrchestrationValidation(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions)
+        {
+            var candidate = _orchestration.CreateProfile(
+                stepDefinitions,
+                name: "HMI-Preview",
+                version: _orchestration.ActiveProfile.Version + 1);
+
+            var validation = _orchestration.ValidateProfile(candidate);
+            return validation.Errors;
+        }
+
+        public IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses()
+        {
+            return new List<SafetyGateStatus>
+            {
+                new SafetyGateStatus
+                {
+                    GateName = "Simulation stopped",
+                    IsPassing = !IsRunning,
+                    Detail = IsRunning ? "Stop simulation before apply." : "OK"
+                },
+                new SafetyGateStatus
+                {
+                    GateName = "No machine faults",
+                    IsPassing = !Machines.Any(m => m.FaultActive || m.SequencerState == PlcSequencerState.Fault),
+                    Detail = Machines.Any(m => m.FaultActive || m.SequencerState == PlcSequencerState.Fault) ? "One or more machines faulted." : "OK"
+                },
+                new SafetyGateStatus
+                {
+                    GateName = "Robots idle and empty",
+                    IsPassing = !Robots.Any(r => r.State != RobotState.Idle || r.HeldPart != null),
+                    Detail = Robots.Any(r => r.State != RobotState.Idle || r.HeldPart != null) ? "At least one robot is active or holding a part." : "OK"
+                },
+                new SafetyGateStatus
+                {
+                    GateName = "No loaded mover docked",
+                    IsPassing = !Movers.Any(m => m.CurrentPart != null && (m.State == MoverState.AtLoadStation || m.State == MoverState.AtUnloadStation)),
+                    Detail = Movers.Any(m => m.CurrentPart != null && (m.State == MoverState.AtLoadStation || m.State == MoverState.AtUnloadStation)) ? "Loaded mover docked at station." : "OK"
+                }
+            };
+        }
+
+        private bool CanSafelyApplyOrchestration(out string reason)
+        {
+            var failedGate = GetOrchestrationSafetyGateStatuses().FirstOrDefault(g => !g.IsPassing);
+            if (failedGate != null)
+            {
+                reason = failedGate.Detail;
+                return false;
+            }
+
+            reason = string.Empty;
+            return true;
         }
 
         private void InitializeSystem()
@@ -121,10 +250,19 @@ namespace XTSPrimeMoverProject.Services
             };
 
             Robots = new List<Robot>();
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < Machines.Count; i++)
             {
-                Robots.Add(new Robot(i, i));
+                Robots.Add(new Robot(i, Machines[i].MachineId));
             }
+
+            _machineLoadAngleByMachineId.Clear();
+            for (int i = 0; i < Machines.Count && i < _machineLoadAngles.Length; i++)
+            {
+                _machineLoadAngleByMachineId[Machines[i].MachineId] = _machineLoadAngles[i];
+            }
+
+            _orchestration = new ProductionOrchestration(Machines);
+            _lastKnownGoodOrchestration = _orchestration.ActiveProfile;
 
             _moverAxes.Clear();
             _machineCycles.Clear();
@@ -161,7 +299,9 @@ namespace XTSPrimeMoverProject.Services
             _dataLogger.SeedRecipes(Machines);
             _dataLogger.LogAlarm("Info", "Simulation", "System initialized", false);
             Log("Simulation initialized.");
+            Log($"Orchestrated sequence: {_orchestration.DescribeFlow()}");
             Log("Flow mode: queued transfer (new parts can enter while upstream movers wait behind process bottlenecks).");
+            _lastKnownGoodOrchestration = _orchestration.ActiveProfile.Clone(_orchestration.ActiveProfile.Name, _orchestration.ActiveProfile.Version);
         }
 
         private void InitializeWatchdogs()
@@ -257,19 +397,11 @@ namespace XTSPrimeMoverProject.Services
         {
             foreach (var mover in Movers)
             {
-                int matchedStation = -1;
-                for (int i = 0; i < _machineLoadAngles.Length; i++)
-                {
-                    if (mover.IsAtStation(_machineLoadAngles[i]))
-                    {
-                        matchedStation = i;
-                        break;
-                    }
-                }
+                int matchedMachineId = TryGetMatchedMachineId(mover);
 
                 bool holdAtStation = false;
 
-                if (matchedStation == -1)
+                if (matchedMachineId == -1)
                 {
                     if (mover.CurrentPart == null)
                     {
@@ -285,14 +417,14 @@ namespace XTSPrimeMoverProject.Services
                 else if (mover.CurrentPart == null)
                 {
                     bool robotWaitingToReturnPart = Robots.Any(r =>
-                        r.AssignedMachineId == matchedStation &&
+                        r.AssignedMachineId == matchedMachineId &&
                         r.State == RobotState.PlacingOnMover &&
                         r.HeldPart != null);
 
                     if (robotWaitingToReturnPart)
                     {
                         mover.State = MoverState.AtUnloadStation;
-                        mover.TargetStation = matchedStation;
+                        mover.TargetStation = matchedMachineId;
                         holdAtStation = true;
                     }
                     else
@@ -301,11 +433,11 @@ namespace XTSPrimeMoverProject.Services
                         mover.TargetStation = -1;
                     }
                 }
-                else if (mover.CurrentPart.NextMachineIndex == matchedStation)
+                else if (mover.CurrentPart.NextMachineIndex == matchedMachineId)
                 {
                     mover.State = MoverState.AtLoadStation;
-                    mover.TargetStation = matchedStation;
-                    mover.CurrentPart.CurrentLocation = $"Mover-{mover.MoverId} at M{matchedStation}";
+                    mover.TargetStation = matchedMachineId;
+                    mover.CurrentPart.CurrentLocation = $"Mover-{mover.MoverId} at M{matchedMachineId}";
                     holdAtStation = true;
                 }
                 else
@@ -375,10 +507,15 @@ namespace XTSPrimeMoverProject.Services
                 Log("All machines currently busy; movers will queue until a machine load slot opens.");
             }
 
-            for (int i = 0; i < Robots.Count; i++)
+            var machineById = Machines.ToDictionary(m => m.MachineId);
+            foreach (var robot in Robots)
             {
-                var robot = Robots[i];
-                var machine = Machines[i];
+                if (!machineById.TryGetValue(robot.AssignedMachineId, out var machine))
+                {
+                    continue;
+                }
+
+                int machineId = machine.MachineId;
 
                 if (robot.State == RobotState.Idle)
                 {
@@ -387,28 +524,13 @@ namespace XTSPrimeMoverProject.Services
                         var completedPart = machine.UnloadPart();
                         if (completedPart != null)
                         {
-                            completedPart.NextMachineIndex = i + 1;
+                            completedPart.NextMachineIndex = _orchestration.GetNextMachineIndex(machine.MachineId);
                             completedPart.CurrentLocation = $"Robot-{robot.RobotId} from {machine.Name}";
                             _dataLogger.LogMachineExit(machine, completedPart);
                             _dataLogger.LogPartEvent(completedPart, "MachineExit", machine.Name, $"Exited {machine.Name}");
                             Log($"{completedPart.TrackingNumber} exited {machine.Name}");
 
-                            if (i == Machines.Count - 1)
-                            {
-                                completedPart.Status = completedPart.HasDefect ? PartStatus.Bad : PartStatus.Good;
-                            }
-                            else if (i == 1)
-                            {
-                                completedPart.Status = PartStatus.Assembled;
-                            }
-                            else if (i == 2)
-                            {
-                                completedPart.Status = PartStatus.Tested;
-                            }
-                            else
-                            {
-                                completedPart.Status = PartStatus.InProcess;
-                            }
+                            completedPart.Status = _orchestration.ResolveOutboundStatus(machine.MachineId, completedPart);
 
                             robot.StartPickFromMachine(completedPart);
                         }
@@ -417,9 +539,9 @@ namespace XTSPrimeMoverProject.Services
                     {
                         var loadMover = Movers.FirstOrDefault(m =>
                             m.State == MoverState.AtLoadStation &&
-                            m.TargetStation == i &&
+                            m.TargetStation == machineId &&
                             m.CurrentPart != null &&
-                            m.CurrentPart.NextMachineIndex == i);
+                            m.CurrentPart.NextMachineIndex == machineId);
 
                         if (loadMover?.CurrentPart != null)
                         {
@@ -427,7 +549,7 @@ namespace XTSPrimeMoverProject.Services
                             loadMover.CurrentPart = null;
                             loadMover.State = MoverState.Moving;
                             part.CurrentLocation = $"Robot-{robot.RobotId} from Mover-{loadMover.MoverId}";
-                            _dataLogger.LogPartEvent(part, "MoverUnload", $"M{i}", $"Robot picked from mover {loadMover.MoverId}");
+                            _dataLogger.LogPartEvent(part, "MoverUnload", $"M{machineId}", $"Robot picked from mover {loadMover.MoverId}");
                             Log($"{part.TrackingNumber} picked from mover {loadMover.MoverId} into {machine.Name}");
                             robot.StartPickFromMover(part);
                         }
@@ -463,7 +585,7 @@ namespace XTSPrimeMoverProject.Services
                 {
                     var unloadMover = Movers.FirstOrDefault(m =>
                         m.State == MoverState.AtUnloadStation &&
-                        m.TargetStation == i &&
+                        m.TargetStation == machineId &&
                         m.CurrentPart == null);
 
                     if (unloadMover != null)
@@ -471,8 +593,8 @@ namespace XTSPrimeMoverProject.Services
                         unloadMover.CurrentPart = robot.HeldPart;
                         unloadMover.State = MoverState.Loaded;
                         unloadMover.CurrentPart.CurrentLocation = $"Mover-{unloadMover.MoverId}";
-                        _dataLogger.LogPartEvent(unloadMover.CurrentPart, "MoverLoad", $"M{i}", $"Robot placed on mover {unloadMover.MoverId}");
-                        Log($"{unloadMover.CurrentPart.TrackingNumber} placed onto mover {unloadMover.MoverId} from M{i}");
+                        _dataLogger.LogPartEvent(unloadMover.CurrentPart, "MoverLoad", $"M{machineId}", $"Robot placed on mover {unloadMover.MoverId}");
+                        Log($"{unloadMover.CurrentPart.TrackingNumber} placed onto mover {unloadMover.MoverId} from M{machineId}");
                         robot.ReleaseHeldPart();
                     }
                     else
@@ -636,6 +758,19 @@ namespace XTSPrimeMoverProject.Services
             {
                 _exitZoneBlinkRemaining = Math.Max(0, _exitZoneBlinkRemaining - deltaTime);
             }
+        }
+
+        private int TryGetMatchedMachineId(Mover mover)
+        {
+            foreach (var machineId in _orchestration.Steps.Select(s => s.MachineId))
+            {
+                if (_machineLoadAngleByMachineId.TryGetValue(machineId, out var angle) && mover.IsAtStation(angle))
+                {
+                    return machineId;
+                }
+            }
+
+            return -1;
         }
 
         private bool IsTooCloseToMoverAhead(Mover mover, double minGapDegrees)
@@ -918,5 +1053,12 @@ namespace XTSPrimeMoverProject.Services
         public DateTime LastTriggeredAt { get; set; }
         public string LastRecoveredObject { get; set; } = "-";
         public string LastMessage { get; set; } = string.Empty;
+    }
+
+    public class SafetyGateStatus
+    {
+        public string GateName { get; set; } = string.Empty;
+        public bool IsPassing { get; set; }
+        public string Detail { get; set; } = string.Empty;
     }
 }

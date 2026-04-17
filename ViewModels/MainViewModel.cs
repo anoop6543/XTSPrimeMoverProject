@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows.Data;
 using System.Windows.Input;
 using XTSPrimeMoverProject.Models;
 using XTSPrimeMoverProject.Services;
@@ -20,6 +23,11 @@ namespace XTSPrimeMoverProject.ViewModels
         private string _selectedExportTable;
         private string _csvExportStatus;
         private double _simulationSpeed;
+        private string _selectedDbTable;
+        private string _dbTableStatus;
+        private string _dbTableSearchText;
+        private string _orchestrationStatus;
+        private string _orchestrationValidationStatus;
 
         public ObservableCollection<MoverViewModel> Movers { get; }
         public ObservableCollection<MachineViewModel> Machines { get; }
@@ -28,12 +36,29 @@ namespace XTSPrimeMoverProject.ViewModels
         public ObservableCollection<string> ExportTables { get; }
         public ObservableCollection<string> ExecutionLogs { get; }
         public ObservableCollection<WatchdogStatusItemViewModel> WatchdogStatuses { get; }
+        public ObservableCollection<string> DbTables { get; }
+        public ObservableCollection<OrchestrationStepEditItem> OrchestrationSteps { get; }
+        public ObservableCollection<SafetyGateStatusItemViewModel> SafetyGates { get; }
+        private DataView _dbTableRowsView;
+
+        public DataView DbTableRowsView
+        {
+            get => _dbTableRowsView;
+            set { _dbTableRowsView = value; OnPropertyChanged(); }
+        }
 
         public ICommand StartCommand { get; }
         public ICommand StopCommand { get; }
         public ICommand ResetCommand { get; }
         public ICommand InspectPartHistoryCommand { get; }
         public ICommand ExportCsvCommand { get; }
+        public ICommand RefreshDbTablesCommand { get; }
+        public ICommand MoveOrchestrationStepUpCommand { get; }
+        public ICommand MoveOrchestrationStepDownCommand { get; }
+        public ICommand ApplyOrchestrationCommand { get; }
+        public ICommand ReloadOrchestrationCommand { get; }
+        public ICommand PreviewOrchestrationValidationCommand { get; }
+        public ICommand RefreshSafetyGatesCommand { get; }
 
         public string StatusText
         {
@@ -82,6 +107,57 @@ namespace XTSPrimeMoverProject.ViewModels
             set { _csvExportStatus = value; OnPropertyChanged(); }
         }
 
+        public string SelectedDbTable
+        {
+            get => _selectedDbTable;
+            set
+            {
+                if (_selectedDbTable == value)
+                {
+                    return;
+                }
+
+                _selectedDbTable = value;
+                OnPropertyChanged();
+                LoadSelectedDbTableRows();
+            }
+        }
+
+        public string DbTableStatus
+        {
+            get => _dbTableStatus;
+            set { _dbTableStatus = value; OnPropertyChanged(); }
+        }
+
+        public string OrchestrationStatus
+        {
+            get => _orchestrationStatus;
+            set { _orchestrationStatus = value; OnPropertyChanged(); }
+        }
+
+        public string OrchestrationValidationStatus
+        {
+            get => _orchestrationValidationStatus;
+            set { _orchestrationValidationStatus = value; OnPropertyChanged(); }
+        }
+
+        public string DbTableSearchText
+        {
+            get => _dbTableSearchText;
+            set
+            {
+                string next = value ?? string.Empty;
+                if (_dbTableSearchText == next)
+                {
+                    return;
+                }
+
+                _dbTableSearchText = next;
+                OnPropertyChanged();
+                ApplyDbTableFilter();
+            }
+        }
+
         public int TotalPartsProduced => _engine.TotalPartsProduced;
         public int GoodPartsCount => _engine.GoodPartsCount;
         public int BadPartsCount => _engine.BadPartsCount;
@@ -125,6 +201,11 @@ namespace XTSPrimeMoverProject.ViewModels
             _selectedExportTable = string.Empty;
             _csvExportStatus = "CSV export idle.";
             _simulationSpeed = 1.0;
+            _selectedDbTable = string.Empty;
+            _dbTableStatus = "Select a table to view rows.";
+            _dbTableSearchText = string.Empty;
+            _orchestrationStatus = "Edit sequence then apply (only when simulation is stopped).";
+            _orchestrationValidationStatus = "Run preview validation to inspect rule violations before apply.";
 
             Movers = new ObservableCollection<MoverViewModel>();
             Machines = new ObservableCollection<MachineViewModel>();
@@ -133,17 +214,31 @@ namespace XTSPrimeMoverProject.ViewModels
             ExportTables = new ObservableCollection<string>();
             ExecutionLogs = new ObservableCollection<string>();
             WatchdogStatuses = new ObservableCollection<WatchdogStatusItemViewModel>();
+            DbTables = new ObservableCollection<string>();
+            OrchestrationSteps = new ObservableCollection<OrchestrationStepEditItem>();
+            SafetyGates = new ObservableCollection<SafetyGateStatusItemViewModel>();
+            DbTableRowsView = CreateEmptyDbTableView();
 
             StartCommand = new RelayCommand(Start, () => !IsRunning);
             StopCommand = new RelayCommand(Stop, () => IsRunning);
             ResetCommand = new RelayCommand(Reset);
             InspectPartHistoryCommand = new RelayCommand(InspectPartHistory);
             ExportCsvCommand = new RelayCommand(ExportCsv, () => !string.IsNullOrWhiteSpace(SelectedExportTable));
+            RefreshDbTablesCommand = new RelayCommand(LoadDbTables);
+            MoveOrchestrationStepUpCommand = new RelayCommand<object?>(MoveOrchestrationStepUp);
+            MoveOrchestrationStepDownCommand = new RelayCommand<object?>(MoveOrchestrationStepDown);
+            ApplyOrchestrationCommand = new RelayCommand(ApplyOrchestrationFromHmi);
+            ReloadOrchestrationCommand = new RelayCommand(LoadOrchestrationSteps);
+            PreviewOrchestrationValidationCommand = new RelayCommand(PreviewOrchestrationValidation);
+            RefreshSafetyGatesCommand = new RelayCommand(RefreshSafetyGates);
 
             _engine.SetSimulationSpeed(_simulationSpeed);
 
             InitializeViewModels();
             LoadExportTables();
+            LoadDbTables();
+            LoadOrchestrationSteps();
+            RefreshSafetyGates();
             RefreshWatchdogStatuses();
             UpdateStatus();
         }
@@ -180,6 +275,225 @@ namespace XTSPrimeMoverProject.ViewModels
             if (ExportTables.Count > 0)
             {
                 SelectedExportTable = ExportTables[0];
+            }
+        }
+
+        private void LoadDbTables()
+        {
+            DbTables.Clear();
+            foreach (var table in _engine.GetAllTables())
+            {
+                DbTables.Add(table);
+            }
+
+            if (DbTables.Count == 0)
+            {
+                SelectedDbTable = string.Empty;
+                DbTableRowsView = CreateEmptyDbTableView();
+                DbTableStatus = "No tables found in the runtime database.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(SelectedDbTable) || !DbTables.Contains(SelectedDbTable))
+            {
+                SelectedDbTable = DbTables[0];
+            }
+            else
+            {
+                LoadSelectedDbTableRows();
+            }
+        }
+
+        private void LoadSelectedDbTableRows()
+        {
+            if (string.IsNullOrWhiteSpace(SelectedDbTable))
+            {
+                DbTableRowsView = CreateEmptyDbTableView();
+                DbTableStatus = "Select a table to view rows.";
+                return;
+            }
+
+            try
+            {
+                var columns = _engine.GetTableColumns(SelectedDbTable);
+                int totalRows = _engine.GetTableRowCount(SelectedDbTable);
+                var rows = _engine.GetTableRows(SelectedDbTable, 500);
+
+                var table = new DataTable(SelectedDbTable);
+                foreach (var col in columns)
+                {
+                    table.Columns.Add(col, typeof(string));
+                }
+
+                foreach (var row in rows)
+                {
+                    var dr = table.NewRow();
+                    foreach (DataColumn col in table.Columns)
+                    {
+                        dr[col.ColumnName] = row.TryGetValue(col.ColumnName, out var value) ? value : string.Empty;
+                    }
+
+                    table.Rows.Add(dr);
+                }
+
+                DbTableRowsView = table.DefaultView;
+                ApplyDbTableFilter();
+                DbTableStatus = $"Loaded {table.Rows.Count} rows (of {totalRows}) from {SelectedDbTable}. Columns: {table.Columns.Count}.";
+            }
+            catch (Exception ex)
+            {
+                DbTableRowsView = CreateEmptyDbTableView();
+                DbTableStatus = $"DB table validation/load failed: {ex.Message}";
+            }
+        }
+
+        private static DataView CreateEmptyDbTableView()
+        {
+            var t = new DataTable("DbTableRows");
+            t.Columns.Add("Info", typeof(string));
+            return t.DefaultView;
+        }
+
+        private void ApplyDbTableFilter()
+        {
+            if (DbTableRowsView == null || DbTableRowsView.Table == null)
+            {
+                return;
+            }
+
+            string term = (DbTableSearchText ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                DbTableRowsView.RowFilter = string.Empty;
+                return;
+            }
+
+            string escaped = term.Replace("'", "''");
+            var expressions = DbTableRowsView.Table.Columns
+                .Cast<DataColumn>()
+                .Select(c => $"Convert([{c.ColumnName}], 'System.String') LIKE '%{escaped}%'");
+
+            DbTableRowsView.RowFilter = string.Join(" OR ", expressions);
+        }
+
+        private void LoadOrchestrationSteps()
+        {
+            OrchestrationSteps.Clear();
+            foreach (var step in _engine.GetOrchestrationSteps().OrderBy(s => s.Order))
+            {
+                OrchestrationSteps.Add(new OrchestrationStepEditItem
+                {
+                    Order = step.Order,
+                    MachineId = step.MachineId,
+                    MachineName = step.MachineName,
+                    OutputStatus = step.OutputStatus.ToString()
+                });
+            }
+
+            OrchestrationStatus = OrchestrationSteps.Count == 0
+                ? "No orchestration steps available."
+                : $"Loaded {OrchestrationSteps.Count} steps. Edit order/output then apply when simulation is stopped.";
+            RefreshSafetyGates();
+        }
+
+        private void MoveOrchestrationStepUp(object? parameter)
+        {
+            if (parameter is not OrchestrationStepEditItem item)
+            {
+                return;
+            }
+
+            int index = OrchestrationSteps.IndexOf(item);
+            if (index <= 0)
+            {
+                return;
+            }
+
+            OrchestrationSteps.Move(index, index - 1);
+            ReindexOrchestrationSteps();
+        }
+
+        private void MoveOrchestrationStepDown(object? parameter)
+        {
+            if (parameter is not OrchestrationStepEditItem item)
+            {
+                return;
+            }
+
+            int index = OrchestrationSteps.IndexOf(item);
+            if (index < 0 || index >= OrchestrationSteps.Count - 1)
+            {
+                return;
+            }
+
+            OrchestrationSteps.Move(index, index + 1);
+            ReindexOrchestrationSteps();
+        }
+
+        private void ReindexOrchestrationSteps()
+        {
+            for (int i = 0; i < OrchestrationSteps.Count; i++)
+            {
+                OrchestrationSteps[i].Order = i;
+            }
+        }
+
+        private void ApplyOrchestrationFromHmi()
+        {
+            var stepDefs = BuildStepDefinitionsFromEditor();
+            if (_engine.TryApplyOrchestration(stepDefs, out var message))
+            {
+                OrchestrationStatus = message;
+                OrchestrationValidationStatus = "Apply successful.";
+                LoadOrchestrationSteps();
+            }
+            else
+            {
+                OrchestrationStatus = message;
+            }
+
+            RefreshSafetyGates();
+        }
+
+        private void PreviewOrchestrationValidation()
+        {
+            var stepDefs = BuildStepDefinitionsFromEditor();
+            var errors = _engine.PreviewOrchestrationValidation(stepDefs);
+            if (errors.Count == 0)
+            {
+                OrchestrationValidationStatus = "Validation OK: no rule violations.";
+            }
+            else
+            {
+                OrchestrationValidationStatus = "Validation errors: " + string.Join(" | ", errors);
+            }
+
+            RefreshSafetyGates();
+        }
+
+        private List<OrchestrationStepDefinition> BuildStepDefinitionsFromEditor()
+        {
+            return OrchestrationSteps
+                .OrderBy(s => s.Order)
+                .Select(s => new OrchestrationStepDefinition
+                {
+                    MachineId = s.MachineId,
+                    OutputStatus = Enum.TryParse<PartStatus>(s.OutputStatus, out var parsed) ? parsed : PartStatus.InProcess
+                })
+                .ToList();
+        }
+
+        private void RefreshSafetyGates()
+        {
+            SafetyGates.Clear();
+            foreach (var gate in _engine.GetOrchestrationSafetyGateStatuses())
+            {
+                SafetyGates.Add(new SafetyGateStatusItemViewModel
+                {
+                    GateName = gate.GateName,
+                    IsPassing = gate.IsPassing,
+                    Detail = gate.Detail
+                });
             }
         }
 
@@ -330,6 +644,8 @@ namespace XTSPrimeMoverProject.ViewModels
             ExecutionLogs.Clear();
             RefreshWatchdogStatuses();
             _engine.SetSimulationSpeed(_simulationSpeed);
+            LoadDbTables();
+            LoadOrchestrationSteps();
         }
 
         private void UpdateStatus()
@@ -363,6 +679,90 @@ namespace XTSPrimeMoverProject.ViewModels
             add { CommandManager.RequerySuggested += value; }
             remove { CommandManager.RequerySuggested -= value; }
         }
+    }
+
+    public class RelayCommand<T> : ICommand
+    {
+        private readonly Action<T> _execute;
+        private readonly Func<T, bool>? _canExecute;
+
+        public RelayCommand(Action<T> execute, Func<T, bool>? canExecute = null)
+        {
+            _execute = execute;
+            _canExecute = canExecute;
+        }
+
+        public bool CanExecute(object? parameter)
+        {
+            if (parameter is T typed)
+            {
+                return _canExecute?.Invoke(typed) ?? true;
+            }
+
+            if (parameter == null && default(T) == null)
+            {
+                return _canExecute?.Invoke((T)parameter!) ?? true;
+            }
+
+            return false;
+        }
+
+        public void Execute(object? parameter)
+        {
+            if (parameter is T typed)
+            {
+                _execute(typed);
+                return;
+            }
+
+            if (parameter == null && default(T) == null)
+            {
+                _execute((T)parameter!);
+            }
+        }
+
+        public event EventHandler? CanExecuteChanged
+        {
+            add { CommandManager.RequerySuggested += value; }
+            remove { CommandManager.RequerySuggested -= value; }
+        }
+    }
+
+    public class OrchestrationStepEditItem : INotifyPropertyChanged
+    {
+        private int _order;
+        private string _outputStatus = string.Empty;
+
+        public int Order
+        {
+            get => _order;
+            set { _order = value; OnPropertyChanged(); OnPropertyChanged(nameof(OrderText)); }
+        }
+
+        public string OrderText => $"Step {Order + 1}";
+        public int MachineId { get; set; }
+        public string MachineName { get; set; } = string.Empty;
+
+        public string OutputStatus
+        {
+            get => _outputStatus;
+            set { _outputStatus = value; OnPropertyChanged(); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class SafetyGateStatusItemViewModel
+    {
+        public string GateName { get; set; } = string.Empty;
+        public bool IsPassing { get; set; }
+        public string Detail { get; set; } = string.Empty;
+        public string GateColor => IsPassing ? "#4CAF50" : "#F44336";
+        public string GateStateText => IsPassing ? "PASS" : "BLOCK";
     }
 
     public class WatchdogStatusItemViewModel
