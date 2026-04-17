@@ -36,6 +36,105 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
+
+        <Style x:Key="DarkTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="#1F1F20"/>
+            <Setter Property="Foreground" Value="#F0F0F0"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#F0F0F0"/>
+        </Style>
+
+        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#1F1F20"/>
+            <Setter Property="Foreground" Value="#F0F0F0"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="DarkTabControlStyle" TargetType="TabControl">
+            <Setter Property="Background" Value="#252526"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="Foreground" Value="#F0F0F0"/>
+        </Style>
+
+        <Style x:Key="DarkTabItemStyle" TargetType="TabItem">
+            <Setter Property="Foreground" Value="#E6E6E6"/>
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4,4,0,0"
+                                Margin="1,1,1,0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#1F1F20"/>
+                                <Setter Property="Foreground" Value="#FFD700"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#333337"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkDataGridStyle" TargetType="DataGrid">
+            <Setter Property="Background" Value="#1F1F20"/>
+            <Setter Property="Foreground" Value="#F0F0F0"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RowBackground" Value="#1F1F20"/>
+            <Setter Property="AlternatingRowBackground" Value="#252526"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#3F3F46"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#3F3F46"/>
+            <Setter Property="ColumnHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#2D2D30"/>
+                        <Setter Property="Foreground" Value="#E6E6E6"/>
+                        <Setter Property="BorderBrush" Value="#3F3F46"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        <Setter Property="Padding" Value="6,4"/>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CellStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Background" Value="#1F1F20"/>
+                        <Setter Property="Foreground" Value="#F0F0F0"/>
+                        <Setter Property="BorderBrush" Value="#3F3F46"/>
+                        <Setter Property="BorderThickness" Value="0.5"/>
+                        <Setter Property="Padding" Value="4,2"/>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RowStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="#1F1F20"/>
+                        <Setter Property="Foreground" Value="#F0F0F0"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#094771"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     
     <Grid>
@@ -369,25 +468,18 @@
                         </StackPanel>
 
                         <DataGrid Grid.Row="1"
-                                  ItemsSource="{Binding DbTableRowsView, Mode=OneWay}"
-                                  AutoGenerateColumns="True"
-                                  IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  Margin="0,10,0,0"
-                                  Background="#1F1F20"
-                                  Foreground="#F0F0F0"
-                                  BorderBrush="#3F3F46"
-                                  BorderThickness="1"
-                                  RowBackground="#1F1F20"
-                                  AlternatingRowBackground="#252526"
-                                  HorizontalGridLinesBrush="#3F3F46"
-                                  VerticalGridLinesBrush="#3F3F46"
-                                  HeadersVisibility="All"
-                                  GridLinesVisibility="All"
-                                  SelectionUnit="FullRow"
-                                  FrozenColumnCount="1"
-                                  ColumnWidth="SizeToHeader"
-                                  MinColumnWidth="110">
+                              ItemsSource="{Binding DbTableRowsView, Mode=OneWay}"
+                              AutoGenerateColumns="True"
+                              IsReadOnly="True"
+                              CanUserAddRows="False"
+                              Margin="0,10,0,0"
+                              HeadersVisibility="All"
+                              GridLinesVisibility="All"
+                              SelectionUnit="FullRow"
+                              FrozenColumnCount="1"
+                              ColumnWidth="SizeToHeader"
+                              MinColumnWidth="110"
+                              Style="{StaticResource DarkDataGridStyle}">
                             <DataGrid.Resources>
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="Background" Value="#2D2D30"/>
@@ -419,10 +511,161 @@
                         </DataGrid>
                     </Grid>
                 </TabItem>
+
+                <TabItem Header="Orchestration Editor">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="SAFE ORCHESTRATION EDITOR" Style="{StaticResource HeaderTextStyle}"/>
+                            <TextBlock Text="Edit machine order, then apply only when simulation is stopped. Interlocks enforce safe apply gates." Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding OrchestrationStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding OrchestrationValidationStatus, Mode=OneWay}" Foreground="#DCDCAA" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding OrchestrationSteps, Mode=OneWay}"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="False"
+                                  CanUserAddRows="False"
+                                  Margin="0,10,0,10"
+                                  Style="{StaticResource DarkDataGridStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Step" Binding="{Binding OrderText, Mode=OneWay}" Width="80"/>
+                                <DataGridTextColumn Header="Machine ID" Binding="{Binding MachineId, Mode=OneWay}" Width="90"/>
+                                <DataGridTextColumn Header="Machine" Binding="{Binding MachineName, Mode=OneWay}" Width="*"/>
+                                <DataGridTemplateColumn Header="Output Status" Width="170">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding OutputStatus, Mode=OneWay}" Foreground="#F0F0F0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding DataContext.OrchestrationOutputStatusOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                      SelectedItem="{Binding OutputStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      Style="{StaticResource DarkComboBoxStyle}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Move" Width="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="↑"
+                                                        Width="36"
+                                                        Margin="0,0,4,0"
+                                                        Command="{Binding DataContext.MoveOrchestrationStepUpCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource ButtonStyle}"
+                                                        Padding="4,2"/>
+                                                <Button Content="↓"
+                                                        Width="36"
+                                                        Command="{Binding DataContext.MoveOrchestrationStepDownCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource ButtonStyle}"
+                                                        Padding="4,2"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <StackPanel Grid.Row="2">
+                            <TextBlock Text="SAFETY GATES" Foreground="#FFD700" FontWeight="Bold" FontSize="11" Margin="0,0,0,4"/>
+                            <ItemsControl ItemsSource="{Binding SafetyGates, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,1">
+                                            <DockPanel>
+                                                <TextBlock Text="●" Foreground="{Binding GateColor, Mode=OneWay}" FontSize="14" Margin="0,0,6,0"/>
+                                                <StackPanel>
+                                                    <TextBlock>
+                                                        <Run Text="{Binding GateName, Mode=OneWay}" Foreground="#F0F0F0" FontWeight="SemiBold"/>
+                                                        <Run Text=" - " Foreground="#888"/>
+                                                        <Run Text="{Binding GateStateText, Mode=OneWay}" Foreground="{Binding GateColor, Mode=OneWay}" FontWeight="Bold"/>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding Detail, Mode=OneWay}" Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <DockPanel Margin="0,8,0,0">
+                                <Button Content="Reload Current"
+                                        Command="{Binding ReloadOrchestrationCommand}"
+                                        Style="{StaticResource ButtonStyle}"
+                                        Padding="12,6"
+                                        Margin="0,0,8,0"
+                                        Width="130"/>
+                                <Button Content="Preview Validation"
+                                        Command="{Binding PreviewOrchestrationValidationCommand}"
+                                        Style="{StaticResource ButtonStyle}"
+                                        Padding="12,6"
+                                        Margin="0,0,8,0"
+                                        Width="160"/>
+                                <Button Content="Refresh Safety Gates"
+                                        Command="{Binding RefreshSafetyGatesCommand}"
+                                        Style="{StaticResource ButtonStyle}"
+                                        Padding="12,6"
+                                        Margin="0,0,8,0"
+                                        Width="170"/>
+                                <Button Content="Apply Orchestration"
+                                        Command="{Binding ApplyOrchestrationCommand}"
+                                        Style="{StaticResource ButtonStyle}"
+                                        Padding="12,6"
+                                        Margin="0"
+                                        Width="170"/>
+                            </DockPanel>
+                        </StackPanel>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Part History Inspector">
+                    <Grid Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="PART HISTORY HELP: enter a tracking number like TRK-00001 (see mover labels/logs)." Foreground="#DCDCAA" FontSize="10" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                            <DockPanel>
+                                <TextBox Width="170" Text="{Binding PartHistoryTrackingNumber, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,0" VerticalContentAlignment="Center" Style="{StaticResource DarkTextBoxStyle}"/>
+                                <Button Content="Inspect" Command="{Binding InspectPartHistoryCommand}" Style="{StaticResource ButtonStyle}" Padding="12,6" Margin="0" Width="90"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding PartHistoryStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0"/>
+                            <TextBlock Text="{Binding PartHistorySummary, Mode=OneWay}" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding PartHistoryEvents, Mode=OneWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" Margin="0,10,0,10" Style="{StaticResource DarkDataGridStyle}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Time" Binding="{Binding EventTime, Mode=OneWay}" Width="130"/>
+                                <DataGridTextColumn Header="Event" Binding="{Binding EventType, Mode=OneWay}" Width="110"/>
+                                <DataGridTextColumn Header="Location" Binding="{Binding Location, Mode=OneWay}" Width="110"/>
+                                <DataGridTextColumn Header="Details" Binding="{Binding Details, Mode=OneWay}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <Border Grid.Row="2" Background="#2D2D30" Padding="8" CornerRadius="4">
+                            <DockPanel>
+                                <ComboBox Width="170" ItemsSource="{Binding ExportTables, Mode=OneWay}" SelectedItem="{Binding SelectedExportTable, Mode=TwoWay}" Margin="0,0,6,0" Style="{StaticResource DarkComboBoxStyle}"/>
+                                <Button Content="Export Selected Table" Command="{Binding ExportCsvCommand}" Style="{StaticResource ButtonStyle}" Padding="12,6" Margin="0" Width="170"/>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </TabItem>
             </TabControl>
 
             <Border Grid.Column="1" Background="#252526" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5">
-                <TabControl Background="#252526" BorderThickness="0">
+                <TabControl Style="{StaticResource DarkTabControlStyle}" BorderThickness="0" ItemContainerStyle="{StaticResource DarkTabItemStyle}">
                     <TabItem Header="Line HMI">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="10">
@@ -535,150 +778,6 @@
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
-
-                    <TabItem Header="Orchestration Editor">
-                        <Grid Margin="10">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <StackPanel>
-                                <TextBlock Text="SAFE ORCHESTRATION EDITOR" Style="{StaticResource HeaderTextStyle}"/>
-                                <TextBlock Text="Edit machine order, then apply only when simulation is stopped. Interlocks enforce safe apply gates." Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
-                                <TextBlock Text="{Binding OrchestrationStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
-                                <TextBlock Text="{Binding OrchestrationValidationStatus, Mode=OneWay}" Foreground="#DCDCAA" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                            </StackPanel>
-
-                            <DataGrid Grid.Row="1"
-                                      ItemsSource="{Binding OrchestrationSteps, Mode=OneWay}"
-                                      AutoGenerateColumns="False"
-                                      IsReadOnly="True"
-                                      CanUserAddRows="False"
-                                      Margin="0,10,0,10"
-                                      Background="#1F1F20"
-                                      Foreground="#F0F0F0"
-                                      BorderBrush="#3F3F46"
-                                      BorderThickness="1">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Step" Binding="{Binding OrderText, Mode=OneWay}" Width="80"/>
-                                    <DataGridTextColumn Header="Machine ID" Binding="{Binding MachineId, Mode=OneWay}" Width="90"/>
-                                    <DataGridTextColumn Header="Machine" Binding="{Binding MachineName, Mode=OneWay}" Width="*"/>
-                                    <DataGridComboBoxColumn Header="Output Status"
-                                                            Width="150"
-                                                            SelectedItemBinding="{Binding OutputStatus, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                            ItemsSource="{Binding DataContext.OrchestrationOutputStatusOptions, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
-                                    <DataGridTemplateColumn Header="Move" Width="120">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                    <Button Content="↑"
-                                                            Width="36"
-                                                            Margin="0,0,4,0"
-                                                            Command="{Binding DataContext.MoveOrchestrationStepUpCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                            CommandParameter="{Binding}"
-                                                            Style="{StaticResource ButtonStyle}"
-                                                            Padding="4,2"/>
-                                                    <Button Content="↓"
-                                                            Width="36"
-                                                            Command="{Binding DataContext.MoveOrchestrationStepDownCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                            CommandParameter="{Binding}"
-                                                            Style="{StaticResource ButtonStyle}"
-                                                            Padding="4,2"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
-
-                            <StackPanel Grid.Row="2">
-                                <TextBlock Text="SAFETY GATES" Foreground="#FFD700" FontWeight="Bold" FontSize="11" Margin="0,0,0,4"/>
-                                <ItemsControl ItemsSource="{Binding SafetyGates, Mode=OneWay}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#2D2D30" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,1">
-                                                <DockPanel>
-                                                    <TextBlock Text="●" Foreground="{Binding GateColor, Mode=OneWay}" FontSize="14" Margin="0,0,6,0"/>
-                                                    <StackPanel>
-                                                        <TextBlock>
-                                                            <Run Text="{Binding GateName, Mode=OneWay}" Foreground="#F0F0F0" FontWeight="SemiBold"/>
-                                                            <Run Text=" - " Foreground="#888"/>
-                                                            <Run Text="{Binding GateStateText, Mode=OneWay}" Foreground="{Binding GateColor, Mode=OneWay}" FontWeight="Bold"/>
-                                                        </TextBlock>
-                                                        <TextBlock Text="{Binding Detail, Mode=OneWay}" Foreground="#AAAAAA" FontSize="10" TextWrapping="Wrap"/>
-                                                    </StackPanel>
-                                                </DockPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <DockPanel Margin="0,8,0,0">
-                                    <Button Content="Reload Current"
-                                            Command="{Binding ReloadOrchestrationCommand}"
-                                            Style="{StaticResource ButtonStyle}"
-                                            Padding="12,6"
-                                            Margin="0,0,8,0"
-                                            Width="130"/>
-                                    <Button Content="Preview Validation"
-                                            Command="{Binding PreviewOrchestrationValidationCommand}"
-                                            Style="{StaticResource ButtonStyle}"
-                                            Padding="12,6"
-                                            Margin="0,0,8,0"
-                                            Width="160"/>
-                                    <Button Content="Refresh Safety Gates"
-                                            Command="{Binding RefreshSafetyGatesCommand}"
-                                            Style="{StaticResource ButtonStyle}"
-                                            Padding="12,6"
-                                            Margin="0,0,8,0"
-                                            Width="170"/>
-                                    <Button Content="Apply Orchestration"
-                                            Command="{Binding ApplyOrchestrationCommand}"
-                                            Style="{StaticResource ButtonStyle}"
-                                            Padding="12,6"
-                                            Margin="0"
-                                            Width="170"/>
-                                </DockPanel>
-                            </StackPanel>
-                        </Grid>
-                    </TabItem>
-
-                    <TabItem Header="Part History Inspector">
-                        <Grid Margin="10">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-                            <StackPanel>
-                                <DockPanel>
-                                    <TextBox Width="170" Text="{Binding PartHistoryTrackingNumber, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,6,0" VerticalContentAlignment="Center"/>
-                                    <Button Content="Inspect" Command="{Binding InspectPartHistoryCommand}" Style="{StaticResource ButtonStyle}" Padding="12,6" Margin="0" Width="90"/>
-                                </DockPanel>
-                                <TextBlock Text="{Binding PartHistoryStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" Margin="0,6,0,0"/>
-                                <TextBlock Text="{Binding PartHistorySummary, Mode=OneWay}" Foreground="#CCCCCC" FontSize="11" TextWrapping="Wrap"/>
-                            </StackPanel>
-
-                            <DataGrid Grid.Row="1" ItemsSource="{Binding PartHistoryEvents, Mode=OneWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" Margin="0,10,0,10" Background="#1F1F20" Foreground="#F0F0F0" BorderBrush="#3F3F46" BorderThickness="1">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Time" Binding="{Binding EventTime, Mode=OneWay}" Width="130"/>
-                                    <DataGridTextColumn Header="Event" Binding="{Binding EventType, Mode=OneWay}" Width="110"/>
-                                    <DataGridTextColumn Header="Location" Binding="{Binding Location, Mode=OneWay}" Width="110"/>
-                                    <DataGridTextColumn Header="Details" Binding="{Binding Details, Mode=OneWay}" Width="*"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-
-                            <Border Grid.Row="2" Background="#2D2D30" Padding="8" CornerRadius="4">
-                                <DockPanel>
-                                    <ComboBox Width="170" ItemsSource="{Binding ExportTables, Mode=OneWay}" SelectedItem="{Binding SelectedExportTable, Mode=TwoWay}" Margin="0,0,6,0"/>
-                                    <Button Content="Export Selected Table" Command="{Binding ExportCsvCommand}" Style="{StaticResource ButtonStyle}" Padding="12,6" Margin="0" Width="170"/>
-                                </DockPanel>
-                            </Border>
-                        </Grid>
-                    </TabItem>
-
 
                 </TabControl>
             </Border>
