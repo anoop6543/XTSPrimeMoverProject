@@ -12,6 +12,8 @@
         <local:MoverColorConverter x:Key="MoverColorConverter"/>
         <local:StationRotaryPositionConverter x:Key="StationRotaryPositionConverter"/>
         <local:StationStateBrushConverter x:Key="StationStateBrushConverter"/>
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:StringToBrushConverter x:Key="StringToBrushConverter"/>
 
         <Style x:Key="StatusTextStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -135,6 +137,298 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- ═══════════════════════════════════════════════
+             MACHINE DETAIL TAB – reusable DataTemplate
+             DataContext = MachineViewModel
+        ════════════════════════════════════════════════ -->
+        <DataTemplate x:Key="MachineDetailTemplate">
+            <ScrollViewer Background="#1A1A1C"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <!-- machine header banner -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- rotary + KPI side-by-side -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- station flow strip -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- fault / status footer -->
+                    </Grid.RowDefinitions>
+
+                    <!-- ── HEADER BANNER ── -->
+                    <Border Grid.Row="0" CornerRadius="8" Margin="0,0,0,10" Padding="14,10">
+                        <Border.Background>
+                            <SolidColorBrush Color="#2D2D30"/>
+                        </Border.Background>
+                        <Border.BorderBrush>
+                            <Binding Path="TypeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                        </Border.BorderBrush>
+                        <Border.BorderThickness>0,0,0,3</Border.BorderThickness>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- icon + name -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding TypeIcon, Mode=OneWay}" FontSize="32" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name, Mode=OneWay}" FontSize="20" FontWeight="Bold">
+                                        <TextBlock.Foreground>
+                                            <Binding Path="TypeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                        </TextBlock.Foreground>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding TypeDescription, Mode=OneWay}" FontSize="11" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="480"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- status badge -->
+                            <Border Grid.Column="2" CornerRadius="6" Padding="12,6" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <Border.Background>
+                                    <Binding Path="StatusBadgeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                </Border.Background>
+                                <TextBlock Text="{Binding StatusBadgeText, Mode=OneWay}" Foreground="White" FontWeight="Bold" FontSize="13"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- ── ROTARY DIAL + KPI PANEL ── -->
+                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- large rotary dial -->
+                        <Border Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="ROTARY TABLE" Foreground="#9CDCFE" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <Canvas Width="200" Height="200" HorizontalAlignment="Center">
+                                    <!-- outer ring -->
+                                    <Ellipse Width="190" Height="190" Canvas.Left="5" Canvas.Top="5" Stroke="#3F3F46" StrokeThickness="3" Fill="#1A1A1C"/>
+                                    <!-- accent ring coloured by machine type -->
+                                    <Ellipse Width="174" Height="174" Canvas.Left="13" Canvas.Top="13" StrokeThickness="4" Fill="Transparent">
+                                        <Ellipse.Stroke>
+                                            <Binding Path="TypeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                        </Ellipse.Stroke>
+                                        <Ellipse.Opacity>0.45</Ellipse.Opacity>
+                                    </Ellipse>
+                                    <!-- inner hub -->
+                                    <Ellipse Width="60" Height="60" Canvas.Left="70" Canvas.Top="70" Fill="#2D2D30" Stroke="#5A5A5E" StrokeThickness="2"/>
+                                    <TextBlock Canvas.Left="76" Canvas.Top="84" FontSize="10" FontWeight="Bold" Foreground="#FFD700">
+                                        <TextBlock.Text><Binding Path="RotaryAngle" Mode="OneWay" StringFormat="{}{0:F0}°"/></TextBlock.Text>
+                                    </TextBlock>
+
+                                    <!-- station dots – rotates with RotaryAngle -->
+                                    <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}"
+                                                  Width="200" Height="200"
+                                                  RenderTransformOrigin="0.5,0.5">
+                                        <ItemsControl.RenderTransform>
+                                            <RotateTransform Angle="{Binding RotaryAngle, Mode=OneWay}"/>
+                                        </ItemsControl.RenderTransform>
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style>
+                                                <Setter Property="Canvas.Left">
+                                                    <Setter.Value>
+                                                        <MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="X" Mode="OneWay">
+                                                            <Binding Path="StationIndex" Mode="OneWay"/>
+                                                            <Binding Path="StationCount" Mode="OneWay"/>
+                                                        </MultiBinding>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter Property="Canvas.Top">
+                                                    <Setter.Value>
+                                                        <MultiBinding Converter="{StaticResource StationRotaryPositionConverter}" ConverterParameter="Y" Mode="OneWay">
+                                                            <Binding Path="StationIndex" Mode="OneWay"/>
+                                                            <Binding Path="StationCount" Mode="OneWay"/>
+                                                        </MultiBinding>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Width="22" Height="22" ToolTip="{Binding Name, Mode=OneWay}">
+                                                    <Ellipse Width="22" Height="22" Stroke="#E6E6E6" StrokeThickness="1.5">
+                                                        <Ellipse.Fill>
+                                                            <SolidColorBrush>
+                                                                <SolidColorBrush.Color>
+                                                                    <MultiBinding Converter="{StaticResource StationStateBrushConverter}" Mode="OneWay">
+                                                                        <Binding Path="Status" Mode="OneWay"/>
+                                                                        <Binding Path="IsCurrentIndex" Mode="OneWay"/>
+                                                                        <Binding Path="HasPart" Mode="OneWay"/>
+                                                                    </MultiBinding>
+                                                                </SolidColorBrush.Color>
+                                                            </SolidColorBrush>
+                                                        </Ellipse.Fill>
+                                                    </Ellipse>
+                                                    <TextBlock Text="{Binding TypeIcon, Mode=OneWay}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Canvas>
+                                <!-- active station label under dial -->
+                                <TextBlock Text="{Binding ActiveStationDescription, Mode=OneWay}" Foreground="#CCCCCC" FontSize="10" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="200" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- KPI cards grid -->
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- KPI: Parts In -->
+                            <Border Grid.Row="0" Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="4" Padding="10">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="PARTS IN" Foreground="#9CDCFE" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PartsEnteredCount, Mode=OneWay}" FontSize="36" FontWeight="Bold" Foreground="#00C875" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <!-- KPI: Parts Out -->
+                            <Border Grid.Row="0" Grid.Column="1" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="4" Padding="10">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="PARTS OUT" Foreground="#9CDCFE" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PartsExitedCount, Mode=OneWay}" FontSize="36" FontWeight="Bold" Foreground="#FFD700" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <!-- KPI: Efficiency -->
+                            <Border Grid.Row="0" Grid.Column="2" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="4" Padding="10">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="YIELD" Foreground="#9CDCFE" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding EfficiencyText, Mode=OneWay}" FontSize="15" FontWeight="Bold" Foreground="#D7BA7D" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <!-- KPI: PLC State -->
+                            <Border Grid.Row="1" Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="4" Padding="10">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="PLC STATE" Foreground="#9CDCFE" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SequencerState, Mode=OneWay}" FontSize="20" FontWeight="Bold" Foreground="#FFD700" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <!-- KPI: Current part -->
+                            <Border Grid.Row="1" Grid.Column="1" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="4" Padding="10">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="ACTIVE PART" Foreground="#9CDCFE" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding CurrentPartId, Mode=OneWay}" FontSize="14" FontWeight="Bold" Foreground="#CCCCCC" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <!-- KPI: ET/PT -->
+                            <Border Grid.Row="1" Grid.Column="2" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Margin="4" Padding="10">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="STATION TIMER" Foreground="#9CDCFE" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding CurrentStationEtPt, Mode=OneWay}" FontSize="14" FontWeight="Bold" Foreground="#9CDCFE" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+
+                    <!-- ── STATION FLOW STRIP ── -->
+                    <Border Grid.Row="2" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="STATION PROCESS FLOW" Foreground="#9CDCFE" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <!-- single station card -->
+                                        <Border Margin="5" Width="185" CornerRadius="8" BorderThickness="2" Padding="10">
+                                            <Border.BorderBrush>
+                                                <Binding Path="StatusBadgeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                            </Border.BorderBrush>
+                                            <Border.Background>
+                                                <SolidColorBrush Color="#2A2A2E"/>
+                                            </Border.Background>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="6"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <!-- header row: icon + name + badge -->
+                                                <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding TypeIcon, Mode=OneWay}" FontSize="18" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="#E6E6E6" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                    <Border Grid.Column="2" CornerRadius="4" Padding="5,2" VerticalAlignment="Center" Margin="4,0,0,0">
+                                                        <Border.Background>
+                                                            <Binding Path="StatusBadgeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                                        </Border.Background>
+                                                        <TextBlock Text="{Binding StatusBadgeText, Mode=OneWay}" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- type description -->
+                                                <TextBlock Grid.Row="1" Text="{Binding TypeDescription, Mode=OneWay}" Foreground="#888888" FontSize="9" Margin="0,0,0,4" TextWrapping="Wrap"/>
+
+                                                <!-- part tracking number -->
+                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <TextBlock Text="Part: " Foreground="#9CDCFE" FontSize="10"/>
+                                                    <TextBlock Text="{Binding PartId, Mode=OneWay}" Foreground="#CCCCCC" FontSize="10" FontWeight="Bold"/>
+                                                </StackPanel>
+
+                                                <!-- ET/PT timer -->
+                                                <TextBlock Grid.Row="3" Text="{Binding ProgressText, Mode=OneWay}" Foreground="#D7BA7D" FontSize="10" Margin="0,0,0,4"/>
+
+                                                <!-- spacer -->
+                                                <Rectangle Grid.Row="4"/>
+
+                                                <!-- progress bar -->
+                                                <ProgressBar Grid.Row="5" Height="8" Margin="0,2,0,0"
+                                                             Minimum="0" Maximum="100"
+                                                             Value="{Binding Progress, Mode=OneWay}"
+                                                             Background="#3F3F46" BorderThickness="0">
+                                                    <ProgressBar.Foreground>
+                                                        <Binding Path="ProgressBarColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                                    </ProgressBar.Foreground>
+                                                </ProgressBar>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── FAULT / STATUS FOOTER ── -->
+                    <Border Grid.Row="3" Background="#2A1010" BorderBrush="#D83B01" BorderThickness="0,0,0,2" CornerRadius="6" Padding="12,8"
+                            Visibility="{Binding HasFault, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚠  FAULT ACTIVE: " Foreground="#D83B01" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding FaultMessage, Mode=OneWay}" Foreground="#FF9999" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+        </DataTemplate>
+
     </Window.Resources>
     
     <Grid>
@@ -431,6 +725,53 @@
                     </Grid>
                         </ScrollViewer>
                     </Border>
+                </TabItem>
+
+                <!-- ════════════════════════════════════
+                     PER-MACHINE ENHANCED TABS  (4 tabs)
+                ════════════════════════════════════ -->
+                <TabItem Style="{StaticResource DarkTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚡ " FontSize="11"/>
+                            <TextBlock Text="{Binding Machines[0].Name, Mode=OneWay}" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ContentPresenter Content="{Binding Machines[0], Mode=OneWay}"
+                                      ContentTemplate="{StaticResource MachineDetailTemplate}"/>
+                </TabItem>
+
+                <TabItem Style="{StaticResource DarkTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔧 " FontSize="11"/>
+                            <TextBlock Text="{Binding Machines[1].Name, Mode=OneWay}" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ContentPresenter Content="{Binding Machines[1], Mode=OneWay}"
+                                      ContentTemplate="{StaticResource MachineDetailTemplate}"/>
+                </TabItem>
+
+                <TabItem Style="{StaticResource DarkTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔍 " FontSize="11"/>
+                            <TextBlock Text="{Binding Machines[2].Name, Mode=OneWay}" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ContentPresenter Content="{Binding Machines[2], Mode=OneWay}"
+                                      ContentTemplate="{StaticResource MachineDetailTemplate}"/>
+                </TabItem>
+
+                <TabItem Style="{StaticResource DarkTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🧪 " FontSize="11"/>
+                            <TextBlock Text="{Binding Machines[3].Name, Mode=OneWay}" FontSize="11"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ContentPresenter Content="{Binding Machines[3], Mode=OneWay}"
+                                      ContentTemplate="{StaticResource MachineDetailTemplate}"/>
                 </TabItem>
 
                 <TabItem Header="DB Tables Viewer">

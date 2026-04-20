@@ -176,4 +176,31 @@ namespace XTSPrimeMoverProject
             throw new NotImplementedException();
         }
     }
+
+    /// <summary>Converts bool to Visibility (true=Visible, false=Collapsed).</summary>
+    public class BoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            => value is bool b && b ? Visibility.Visible : Visibility.Collapsed;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>Converts a hex color string such as "#FF6B35" to a SolidColorBrush.</summary>
+    public class StringToBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is string hex)
+            {
+                try { return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); }
+                catch { }
+            }
+            return new SolidColorBrush(Colors.Gray);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
 }

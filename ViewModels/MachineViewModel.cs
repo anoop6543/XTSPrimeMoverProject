@@ -45,6 +45,71 @@ namespace XTSPrimeMoverProject.ViewModels
             ? $"ET/PT: {_machine.Stations[_machine.CurrentStationIndex].ElapsedTime:F2}/{_machine.Stations[_machine.CurrentStationIndex].ProcessTime:F2}s"
             : "ET/PT: -";
 
+        // Visual helpers for enhanced machine tabs
+        public string TypeColor => _machine.Type switch
+        {
+            MachineType.LaserWelding      => "#FF6B35",
+            MachineType.PrecisionAssembly => "#00C875",
+            MachineType.QualityInspection => "#9CDCFE",
+            MachineType.FunctionalTesting => "#FFD700",
+            _                             => "#CCCCCC"
+        };
+
+        public string TypeIcon => _machine.Type switch
+        {
+            MachineType.LaserWelding      => "⚡",
+            MachineType.PrecisionAssembly => "🔧",
+            MachineType.QualityInspection => "🔍",
+            MachineType.FunctionalTesting => "🧪",
+            _                             => "⚙"
+        };
+
+        public string TypeDescription => _machine.Type switch
+        {
+            MachineType.LaserWelding      => "High-precision laser welding with pre-heat, weld and post-inspection cycle",
+            MachineType.PrecisionAssembly => "Multi-step torque-controlled pick-place-drive-verify assembly",
+            MachineType.QualityInspection => "Vision + dimensional + weight measurement inspection cell",
+            MachineType.FunctionalTesting => "Power-on through stress-test full-function qualification cell",
+            _                             => "Processing cell"
+        };
+
+        public string StatusBadgeText => FaultActive ? "FAULT"
+            : IsIndexing   ? "INDEXING"
+            : CurrentPartId != "-" ? "RUNNING"
+            : SequencerState == "Run" ? "READY"
+            : SequencerState;
+
+        public string StatusBadgeColor => FaultActive ? "#D83B01"
+            : IsIndexing   ? "#FFD700"
+            : CurrentPartId != "-" ? "#00C875"
+            : "#5A5A5E";
+
+        public string EfficiencyText
+        {
+            get
+            {
+                int entered = _machine.PartsEnteredCount;
+                if (entered == 0) return "—";
+                double pct = (double)_machine.PartsExitedCount / entered * 100.0;
+                return $"{_machine.PartsExitedCount}/{entered}  ({pct:F0}% yield)";
+            }
+        }
+
+        public string TotalStationsText => $"{_machine.Stations.Count} stations";
+
+        public string ActiveStationDescription
+        {
+            get
+            {
+                int idx = _machine.CurrentStationIndex;
+                if (idx < 0 || idx >= _machine.Stations.Count) return "No active station";
+                var s = _machine.Stations[idx];
+                return $"[{idx + 1}/{_machine.Stations.Count}]  {s.Name}  –  {s.Type}";
+            }
+        }
+
+        public bool HasFault => _machine.FaultActive;
+
         public ObservableCollection<StationViewModel> Stations { get; }
 
         public MachineViewModel(Machine machine)
@@ -74,6 +139,11 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(RotaryAngle));
             OnPropertyChanged(nameof(RuntimeAction));
             OnPropertyChanged(nameof(CurrentStationEtPt));
+            OnPropertyChanged(nameof(StatusBadgeText));
+            OnPropertyChanged(nameof(StatusBadgeColor));
+            OnPropertyChanged(nameof(EfficiencyText));
+            OnPropertyChanged(nameof(ActiveStationDescription));
+            OnPropertyChanged(nameof(HasFault));
 
             foreach (var station in Stations)
             {

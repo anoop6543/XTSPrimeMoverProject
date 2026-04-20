@@ -26,6 +26,56 @@ namespace XTSPrimeMoverProject.ViewModels
         public string TimeoutText => $"Timeout@{TimeoutThresholdSeconds:F2}s";
         public bool IsTimeoutExceeded => _station.Status == StationStatus.Processing && ElapsedSeconds > TimeoutThresholdSeconds;
 
+        // Visual helpers for enhanced machine tabs
+        public string TypeIcon => _station.Type switch
+        {
+            StationType.Assembly    => "🔧",
+            StationType.Welding     => "⚡",
+            StationType.Inspection  => "🔍",
+            StationType.Testing     => "🧪",
+            StationType.Packaging   => "📦",
+            _                       => "⚙"
+        };
+
+        public string TypeDescription => _station.Type switch
+        {
+            StationType.Assembly    => "Assembly Operation",
+            StationType.Welding     => "Laser Welding",
+            StationType.Inspection  => "Vision / Measurement",
+            StationType.Testing     => "Functional Test",
+            StationType.Packaging   => "Label & Pack",
+            _                       => "Process Step"
+        };
+
+        public string StatusBadgeText => _station.Status switch
+        {
+            StationStatus.Processing => "RUNNING",
+            StationStatus.Complete   => "DONE",
+            StationStatus.Error      => "FAULT",
+            _                        => "IDLE"
+        };
+
+        public string StatusBadgeColor => _station.Status switch
+        {
+            StationStatus.Processing => "#00C875",
+            StationStatus.Complete   => "#0078D4",
+            StationStatus.Error      => "#D83B01",
+            _                        => "#5A5A5E"
+        };
+
+        public string ProgressBarColor => IsTimeoutExceeded ? "#D83B01"
+            : _station.Status == StationStatus.Processing  ? "#00C875"
+            : _station.Status == StationStatus.Complete    ? "#0078D4"
+            : "#3F3F46";
+
+        public string ProgressText => _station.Status == StationStatus.Processing
+            ? $"{Progress:F0}%  ({ElapsedSeconds:F1}/{ProcessTimeSeconds:F1}s)"
+            : _station.Status == StationStatus.Complete ? "✓ Complete"
+            : _station.Status == StationStatus.Error    ? "⚠ Error"
+            : "—";
+
+        public bool IsActive => _station.Status == StationStatus.Processing;
+
         public StationViewModel(Station station, Machine machine)
         {
             _station = station;
@@ -45,6 +95,11 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(EtPtText));
             OnPropertyChanged(nameof(TimeoutText));
             OnPropertyChanged(nameof(IsTimeoutExceeded));
+            OnPropertyChanged(nameof(StatusBadgeText));
+            OnPropertyChanged(nameof(StatusBadgeColor));
+            OnPropertyChanged(nameof(ProgressBarColor));
+            OnPropertyChanged(nameof(ProgressText));
+            OnPropertyChanged(nameof(IsActive));
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
