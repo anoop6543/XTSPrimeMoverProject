@@ -20,7 +20,7 @@ namespace XTSPrimeMoverProject.Models
         public int RobotId { get; set; }
         public string Name { get; set; }
         public RobotState State { get; set; }
-        public Part HeldPart { get; set; }
+        public Part? HeldPart { get; set; }
         public int AssignedMachineId { get; set; }
         public double ActionProgress { get; set; }
         public double ActionTime { get; set; }

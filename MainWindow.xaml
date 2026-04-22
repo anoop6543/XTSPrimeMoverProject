@@ -13,6 +13,7 @@
         <local:StationRotaryPositionConverter x:Key="StationRotaryPositionConverter"/>
         <local:StationStateBrushConverter x:Key="StationStateBrushConverter"/>
         <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:StringToBrushConverter x:Key="StringToBrushConverter"/>
 
         <Style x:Key="StatusTextStyle" TargetType="TextBlock">
@@ -721,6 +722,94 @@
                                 </Border>
                             </Canvas>
 
+                            <ItemsControl x:Name="RobotTransferOverlayControl" ItemsSource="{Binding Robots, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style>
+                                        <Setter Property="Canvas.Left" Value="{Binding CanvasX, Mode=OneWay}"/>
+                                        <Setter Property="Canvas.Top" Value="{Binding CanvasY, Mode=OneWay}"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Width="28" Height="28">
+                                            <Ellipse Width="28" Height="28" Stroke="#00D4FF" StrokeThickness="2" Fill="#1F1F20" Opacity="0.95"/>
+                                            <TextBlock Text="🤖" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding CanvasTransferLabel, Mode=OneWay}"
+                                                       Foreground="#9CDCFE"
+                                                       FontSize="8"
+                                                       FontWeight="Bold"
+                                                       Margin="16,-8,0,0"
+                                                       TextWrapping="Wrap"
+                                                       Width="120"
+                                                       Visibility="{Binding ShowTransferLabel, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ItemsControl x:Name="RobotTransferDashedLinesControl" ItemsSource="{Binding Robots, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><Canvas/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Canvas Width="1040" Height="760"
+                                                Visibility="{Binding IsTransferPathVisible, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <Line X1="{Binding TransferFromX, Mode=OneWay}"
+                                                  Y1="{Binding TransferFromY, Mode=OneWay}"
+                                                  X2="{Binding TransferToX, Mode=OneWay}"
+                                                  Y2="{Binding TransferToY, Mode=OneWay}"
+                                                  StrokeThickness="2"
+                                                  StrokeDashArray="4,3"
+                                                  Opacity="0.9">
+                                                <Line.Stroke>
+                                                    <Binding Path="TransferPathColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                                </Line.Stroke>
+                                                <Line.Effect>
+                                                    <DropShadowEffect Color="#00D4FF" BlurRadius="10" ShadowDepth="0" Opacity="0.85"/>
+                                                </Line.Effect>
+                                                <Line.Style>
+                                                    <Style TargetType="Line">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsTransferPathVisible, Mode=OneWay}" Value="True">
+                                                                <DataTrigger.EnterActions>
+                                                                    <BeginStoryboard x:Name="TransferDashStoryboard">
+                                                                        <Storyboard RepeatBehavior="Forever">
+                                                                            <DoubleAnimation Storyboard.TargetProperty="StrokeDashOffset" From="0" To="-18" Duration="0:0:0.45"/>
+                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.45" To="1.0" Duration="0:0:0.2" AutoReverse="True" RepeatBehavior="Forever"/>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </DataTrigger.EnterActions>
+                                                                <DataTrigger.ExitActions>
+                                                                    <StopStoryboard BeginStoryboardName="TransferDashStoryboard"/>
+                                                                </DataTrigger.ExitActions>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Line.Style>
+                                            </Line>
+
+                                            <Polygon Points="{Binding TransferArrowPoints, Mode=OneWay}"
+                                                     StrokeThickness="1"
+                                                     Opacity="0.95">
+                                                <Polygon.Fill>
+                                                    <Binding Path="TransferPathColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                                </Polygon.Fill>
+                                                <Polygon.Stroke>
+                                                    <Binding Path="TransferPathColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                                </Polygon.Stroke>
+                                                <Polygon.Effect>
+                                                    <DropShadowEffect Color="#00D4FF" BlurRadius="8" ShadowDepth="0" Opacity="0.8"/>
+                                                </Polygon.Effect>
+                                            </Polygon>
+                                        </Canvas>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
                             <ItemsControl x:Name="MoversControl" ItemsSource="{Binding Movers, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemContainerStyle>
@@ -1177,7 +1266,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <TextBlock Text="EXECUTION LOGGER" Foreground="#FFD700" FontWeight="Bold" Margin="2,0,0,6"/>
-                <ListBox Grid.Row="1" ItemsSource="{Binding ExecutionLogs, Mode=OneWay}" Background="#252526" Foreground="#DCDCDC" BorderBrush="#3F3F46" BorderThickness="1" FontFamily="Consolas" FontSize="11" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                <ListBox x:Name="ExecutionLogListBox" Grid.Row="1" ItemsSource="{Binding ExecutionLogs, Mode=OneWay}" Background="#252526" Foreground="#DCDCDC" BorderBrush="#3F3F46" BorderThickness="1" FontFamily="Consolas" FontSize="11" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
             </Grid>
         </Border>
 

@@ -155,13 +155,19 @@ namespace XTSPrimeMoverProject.Models
             return false;
         }
 
-        public Part UnloadPart()
+        public Part? UnloadPart()
         {
             if (CurrentStationIndex == Stations.Count - 1)
             {
-                PartsExitedCount++;
-                return Stations[CurrentStationIndex].CompletePart();
+                var part = Stations[CurrentStationIndex].CompletePart();
+                if (part != null)
+                {
+                    PartsExitedCount++;
+                }
+
+                return part;
             }
+
             return null;
         }
     }

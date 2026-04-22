@@ -42,9 +42,9 @@ namespace XTSPrimeMoverProject.Services
         private const double RobotStallThresholdSeconds = 9.0;
         private const double MoverStallThresholdSeconds = 11.0;
 
-        public List<Mover> Movers { get; private set; }
-        public List<Machine> Machines { get; private set; }
-        public List<Robot> Robots { get; private set; }
+        public List<Mover> Movers { get; private set; } = new();
+        public List<Machine> Machines { get; private set; } = new();
+        public List<Robot> Robots { get; private set; } = new();
 
         public int TotalPartsProduced { get; private set; }
         public int GoodPartsCount { get; private set; }
@@ -548,6 +548,11 @@ namespace XTSPrimeMoverProject.Services
                             var part = loadMover.CurrentPart;
                             loadMover.CurrentPart = null;
                             loadMover.State = MoverState.Moving;
+                            if (part == null)
+                            {
+                                continue;
+                            }
+
                             part.CurrentLocation = $"Robot-{robot.RobotId} from Mover-{loadMover.MoverId}";
                             _dataLogger.LogPartEvent(part, "MoverUnload", $"M{machineId}", $"Robot picked from mover {loadMover.MoverId}");
                             Log($"{part.TrackingNumber} picked from mover {loadMover.MoverId} into {machine.Name}");
@@ -590,11 +595,17 @@ namespace XTSPrimeMoverProject.Services
 
                     if (unloadMover != null)
                     {
-                        unloadMover.CurrentPart = robot.HeldPart;
+                        var heldPart = robot.HeldPart;
+                        if (heldPart == null)
+                        {
+                            continue;
+                        }
+
+                        unloadMover.CurrentPart = heldPart;
                         unloadMover.State = MoverState.Loaded;
-                        unloadMover.CurrentPart.CurrentLocation = $"Mover-{unloadMover.MoverId}";
-                        _dataLogger.LogPartEvent(unloadMover.CurrentPart, "MoverLoad", $"M{machineId}", $"Robot placed on mover {unloadMover.MoverId}");
-                        Log($"{unloadMover.CurrentPart.TrackingNumber} placed onto mover {unloadMover.MoverId} from M{machineId}");
+                        heldPart.CurrentLocation = $"Mover-{unloadMover.MoverId}";
+                        _dataLogger.LogPartEvent(heldPart, "MoverLoad", $"M{machineId}", $"Robot placed on mover {unloadMover.MoverId}");
+                        Log($"{heldPart.TrackingNumber} placed onto mover {unloadMover.MoverId} from M{machineId}");
                         robot.ReleaseHeldPart();
                     }
                     else

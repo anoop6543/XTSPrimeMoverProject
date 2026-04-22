@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Text;
 using System.Windows;
@@ -39,7 +40,24 @@ namespace XTSPrimeMoverProject
                 : "Machine Gateway: Local In-Process";
 
             var dataGateway = (Services.IDataGatewayService)localGateway;
-            DataContext = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
+            var viewModel = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
+            DataContext = viewModel;
+
+            viewModel.ExecutionLogs.CollectionChanged += OnExecutionLogsCollectionChanged;
+        }
+
+        private void OnExecutionLogsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Reset)
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (ExecutionLogListBox.Items.Count > 0)
+                    {
+                        ExecutionLogListBox.ScrollIntoView(ExecutionLogListBox.Items[ExecutionLogListBox.Items.Count - 1]);
+                    }
+                }));
+            }
         }
 
         private static bool ReadAppBoolSetting(string key, bool defaultValue)

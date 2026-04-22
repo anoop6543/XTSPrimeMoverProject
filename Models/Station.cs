@@ -25,7 +25,7 @@ namespace XTSPrimeMoverProject.Models
         public string Name { get; set; }
         public StationType Type { get; set; }
         public StationStatus Status { get; set; }
-        public Part CurrentPart { get; set; }
+        public Part? CurrentPart { get; set; }
         public double ProcessTime { get; set; }
         public double ElapsedTime { get; set; }
         public double DefectRate { get; set; }
@@ -72,9 +72,9 @@ namespace XTSPrimeMoverProject.Models
             ElapsedTime = 0;
         }
 
-        public Part CompletePart()
+        public Part? CompletePart()
         {
-            Part part = CurrentPart;
+            Part? part = CurrentPart;
             CurrentPart = null;
             Status = StationStatus.Idle;
             ElapsedTime = 0;

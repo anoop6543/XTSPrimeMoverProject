@@ -17,7 +17,7 @@ namespace XTSPrimeMoverProject.Models
         public double Position { get; set; }
         public double Velocity { get; set; }
         public MoverState State { get; set; }
-        public Part CurrentPart { get; set; }
+        public Part? CurrentPart { get; set; }
         public int TargetStation { get; set; }
 
         public Mover(int id)

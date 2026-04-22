@@ -593,7 +593,7 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        private void OnEngineStateChanged(object sender, EventArgs e)
+        private void OnEngineStateChanged(object? sender, EventArgs e)
         {
             foreach (var mvm in Movers)
             {
@@ -660,9 +660,9 @@ namespace XTSPrimeMoverProject.ViewModels
             StatusText = IsRunning ? "SYSTEM RUNNING" : "SYSTEM STOPPED";
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
@@ -671,17 +671,17 @@ namespace XTSPrimeMoverProject.ViewModels
     public class RelayCommand : ICommand
     {
         private readonly Action _execute;
-        private readonly Func<bool> _canExecute;
+        private readonly Func<bool>? _canExecute;
 
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
+        public RelayCommand(Action execute, Func<bool>? canExecute = null)
         {
             _execute = execute;
             _canExecute = canExecute;
         }
 
-        public bool CanExecute(object parameter) => _canExecute?.Invoke() ?? true;
-        public void Execute(object parameter) => _execute();
-        public event EventHandler CanExecuteChanged
+        public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
+        public void Execute(object? parameter) => _execute();
+        public event EventHandler? CanExecuteChanged
         {
             add { CommandManager.RequerySuggested += value; }
             remove { CommandManager.RequerySuggested -= value; }
@@ -757,7 +757,7 @@ namespace XTSPrimeMoverProject.ViewModels
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
