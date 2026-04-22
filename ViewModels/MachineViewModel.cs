@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -9,6 +10,7 @@ namespace XTSPrimeMoverProject.ViewModels
     public class MachineViewModel : INotifyPropertyChanged
     {
         private readonly Machine _machine;
+        private readonly ObservableCollection<RobotViewModel> _allRobots;
 
         public int MachineId => _machine.MachineId;
         public string Name => _machine.Name;
@@ -110,11 +112,23 @@ namespace XTSPrimeMoverProject.ViewModels
 
         public bool HasFault => _machine.FaultActive;
 
+        public RobotViewModel? AssignedRobot => _allRobots.FirstOrDefault(r => r.AssignedMachine == MachineId);
+        public string AssignedRobotName => AssignedRobot?.Name ?? $"Robot-M{MachineId} (unmapped)";
+        public string AssignedRobotState => AssignedRobot?.State ?? "Unavailable";
+        public string AssignedRobotTransferLane => AssignedRobot?.TransferLane ?? "-";
+        public string AssignedRobotTransferStage => AssignedRobot?.TransferStage ?? "-";
+        public string AssignedRobotHeldPart => AssignedRobot?.HeldTrackingNumber ?? "-";
+        public double AssignedRobotProgress => AssignedRobot?.Progress ?? 0.0;
+        public bool IsRobotTransferActive => AssignedRobot?.IsTransferActive ?? false;
+        public string RobotTransferBadgeText => IsRobotTransferActive ? "ROBOT TRANSFER ACTIVE" : "ROBOT IDLE";
+        public string RobotTransferBadgeColor => IsRobotTransferActive ? "#00C875" : "#5A5A5E";
+
         public ObservableCollection<StationViewModel> Stations { get; }
 
-        public MachineViewModel(Machine machine)
+        public MachineViewModel(Machine machine, ObservableCollection<RobotViewModel> allRobots)
         {
             _machine = machine;
+            _allRobots = allRobots;
             Stations = new ObservableCollection<StationViewModel>();
 
             foreach (var station in _machine.Stations)
@@ -144,6 +158,16 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(EfficiencyText));
             OnPropertyChanged(nameof(ActiveStationDescription));
             OnPropertyChanged(nameof(HasFault));
+            OnPropertyChanged(nameof(AssignedRobot));
+            OnPropertyChanged(nameof(AssignedRobotName));
+            OnPropertyChanged(nameof(AssignedRobotState));
+            OnPropertyChanged(nameof(AssignedRobotTransferLane));
+            OnPropertyChanged(nameof(AssignedRobotTransferStage));
+            OnPropertyChanged(nameof(AssignedRobotHeldPart));
+            OnPropertyChanged(nameof(AssignedRobotProgress));
+            OnPropertyChanged(nameof(IsRobotTransferActive));
+            OnPropertyChanged(nameof(RobotTransferBadgeText));
+            OnPropertyChanged(nameof(RobotTransferBadgeColor));
 
             foreach (var station in Stations)
             {

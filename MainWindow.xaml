@@ -155,6 +155,8 @@
                         <RowDefinition Height="Auto"/>
                         <!-- station flow strip -->
                         <RowDefinition Height="Auto"/>
+                        <!-- robot transfer visual -->
+                        <RowDefinition Height="Auto"/>
                         <!-- fault / status footer -->
                     </Grid.RowDefinitions>
 
@@ -417,8 +419,35 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ── ROBOT TRANSFER VISUAL ── -->
+                    <Border Grid.Row="3" Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="ROBOT LOAD / UNLOAD TRANSFER" Foreground="#9CDCFE" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
+                                <TextBlock Text="{Binding AssignedRobotName, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="12"/>
+                                <TextBlock Text="{Binding AssignedRobotState, Mode=OneWay, StringFormat='State: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
+                                <TextBlock Text="{Binding AssignedRobotTransferLane, Mode=OneWay, StringFormat='Transfer Lane: {0}'}" Foreground="#DCDCAA" FontSize="10"/>
+                                <TextBlock Text="{Binding AssignedRobotTransferStage, Mode=OneWay, StringFormat='Stage: {0}'}" Foreground="#CE9178" FontSize="10"/>
+                                <TextBlock Text="{Binding AssignedRobotHeldPart, Mode=OneWay, StringFormat='Part in gripper: {0}'}" Foreground="#B5CEA8" FontSize="10"/>
+                                <ProgressBar Value="{Binding AssignedRobotProgress, Mode=OneWay}" Height="8" Margin="0,8,0,0" Background="#3F3F46" Foreground="#00B7C3"/>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" CornerRadius="6" Padding="10,6" Margin="12,0,0,0" VerticalAlignment="Top">
+                                <Border.Background>
+                                    <Binding Path="RobotTransferBadgeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                </Border.Background>
+                                <TextBlock Text="{Binding RobotTransferBadgeText, Mode=OneWay}" Foreground="White" FontWeight="Bold" FontSize="10"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
                     <!-- ── FAULT / STATUS FOOTER ── -->
-                    <Border Grid.Row="3" Background="#2A1010" BorderBrush="#D83B01" BorderThickness="0,0,0,2" CornerRadius="6" Padding="12,8"
+                    <Border Grid.Row="4" Background="#2A1010" BorderBrush="#D83B01" BorderThickness="0,0,0,2" CornerRadius="6" Padding="12,8"
                             Visibility="{Binding HasFault, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="⚠  FAULT ACTIVE: " Foreground="#D83B01" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -1018,6 +1047,7 @@
                                         <TextBlock Text="{Binding GoodPartsCount, Mode=OneWay, StringFormat='Good Parts: {0}'}" Style="{StaticResource StatusTextStyle}"/>
                                         <TextBlock Text="{Binding BadPartsCount, Mode=OneWay, StringFormat='Bad Parts: {0}'}" Style="{StaticResource StatusTextStyle}"/>
                                         <TextBlock Text="{Binding YieldPercentage, Mode=OneWay, StringFormat='Yield: {0:F1}%'}" Style="{StaticResource StatusTextStyle}"/>
+                                        <TextBlock Text="{Binding GatewayModeStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" FontWeight="SemiBold" Margin="5,4,5,0" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding DatabasePath, Mode=OneWay, StringFormat='DB: {0}'}" Foreground="#AAAAAA" FontSize="10" Margin="5,4,5,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
@@ -1082,21 +1112,37 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <TextBlock Text="ROBOT TRANSFERS" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
+                                <TextBlock Text="ROBOT TRANSFERS (MOVER ↔ MACHINE)" Style="{StaticResource HeaderTextStyle}" Margin="0,10,0,0"/>
                                 <ItemsControl ItemsSource="{Binding Robots, Mode=OneWay}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="#2D2D30" Padding="8" Margin="0,2" CornerRadius="3" BorderBrush="#3F3F46" BorderThickness="1">
-                                                <StackPanel>
-                                                    <TextBlock>
-                                                        <Run Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
-                                                        <Run Text=" → M" Foreground="#CCCCCC"/>
-                                                        <Run Text="{Binding AssignedMachine, Mode=OneWay}" Foreground="#FFD700"/>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding State, Mode=OneWay, StringFormat='State: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
-                                                    <TextBlock Text="{Binding HeldTrackingNumber, Mode=OneWay, StringFormat='Holding: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
-                                                    <ProgressBar Value="{Binding Progress, Mode=OneWay}" Height="5" Margin="0,3,0,0" Background="#3F3F46" Foreground="#00B7C3"/>
-                                                </StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock>
+                                                            <Run Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold"/>
+                                                            <Run Text="  |  M" Foreground="#CCCCCC"/>
+                                                            <Run Text="{Binding AssignedMachine, Mode=OneWay}" Foreground="#FFD700"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding TransferLane, Mode=OneWay, StringFormat='Lane: {0}'}" Foreground="#DCDCAA" FontSize="10"/>
+                                                        <TextBlock Text="{Binding TransferStage, Mode=OneWay, StringFormat='Stage: {0}'}" Foreground="#CE9178" FontSize="10"/>
+                                                        <TextBlock Text="{Binding HeldTrackingNumber, Mode=OneWay, StringFormat='Part in gripper: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                                        <TextBlock Text="{Binding TransferProgressText, Mode=OneWay}" Foreground="#B5CEA8" FontSize="10"/>
+                                                        <ProgressBar Value="{Binding Progress, Mode=OneWay}" Height="6" Margin="0,4,0,0" Background="#3F3F46" Foreground="#00B7C3"/>
+                                                    </StackPanel>
+
+                                                    <Border Grid.Column="1" CornerRadius="6" Padding="10,6" Margin="10,0,0,0" VerticalAlignment="Top">
+                                                        <Border.Background>
+                                                            <Binding Path="TransferBadgeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
+                                                        </Border.Background>
+                                                        <TextBlock Text="{Binding TransferBadgeText, Mode=OneWay}" Foreground="White" FontWeight="Bold" FontSize="9"/>
+                                                    </Border>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

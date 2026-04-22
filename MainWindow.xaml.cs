@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using XTSPrimeMoverProject.Services.RemoteTwinCatMock;
 using XTSPrimeMoverProject.ViewModels;
 
 namespace XTSPrimeMoverProject
@@ -22,7 +23,43 @@ namespace XTSPrimeMoverProject
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainViewModel();
+
+            var engine = new Services.XTSSimulationEngine();
+            var localGateway = new Services.LocalSimulationServiceGateway(engine);
+
+            bool useRemoteMock = ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
+            int latencyMs = ReadAppIntSetting("RemoteTwinCatMachineGatewayMockLatencyMs", defaultValue: 40);
+
+            Services.IMachineGatewayService machineGateway = useRemoteMock
+                ? new RemoteTwinCatMachineGatewayMock(localGateway, commandLatencyMs: latencyMs)
+                : localGateway;
+
+            string gatewayModeStatus = useRemoteMock
+                ? $"Machine Gateway: Remote TwinCAT Mock ({latencyMs} ms)"
+                : "Machine Gateway: Local In-Process";
+
+            var dataGateway = (Services.IDataGatewayService)localGateway;
+            DataContext = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
+        }
+
+        private static bool ReadAppBoolSetting(string key, bool defaultValue)
+        {
+            if (Application.Current?.Resources[key] is bool value)
+            {
+                return value;
+            }
+
+            return defaultValue;
+        }
+
+        private static int ReadAppIntSetting(string key, int defaultValue)
+        {
+            if (Application.Current?.Resources[key] is int value)
+            {
+                return value;
+            }
+
+            return defaultValue;
         }
     }
 

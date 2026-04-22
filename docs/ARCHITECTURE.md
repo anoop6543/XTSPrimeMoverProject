@@ -12,9 +12,10 @@ This document describes the current architecture of the Beckhoff-style XTS simul
 
 ## 2. High-Level Design
 
-The solution follows **service-driven simulation + MVVM visualization**.
+The solution follows **service-driven simulation + MVVM visualization** and is being modernized toward **split runtime boundaries**.
 
 ```text
+Current (in-process)
 MainWindow (View / visualization)
    ↕ binding
 ViewModels (Main, Mover, Machine, Station, Robot)
@@ -22,9 +23,13 @@ ViewModels (Main, Mover, Machine, Station, Robot)
 Services (XTSSimulationEngine, SimulationDataLogger, PLC/Motion FBs)
    ↕ orchestration + persistence
 Models (Part, Mover, Robot, Machine, Station)
+
+Target (separated runtimes)
+Beckhoff/TwinCAT machine runtime  <-->  HMI runtime  <-->  Data service runtime
 ```
 
 Core rule: process logic remains in Services/Models, not XAML.
+Service boundaries are now first-class so transport can move from local to remote without UI rewrite.
 
 ---
 
@@ -141,9 +146,13 @@ Schema changes should be treated as explicit migrations.
 
 ---
 
-## 8. Next Practical Enhancements
+## 8. Split-Runtime Modernization Direction
 
-- formal queue visualization (distance-to-next mover)
-- optional step-through mode (single update tick advance)
-- watchdog analytics trend tab
-- automated regression tests for deadlock/stall scenarios
+The modernization target is:
+- **Machine logic on Beckhoff/TwinCAT side**
+- **HMI runtime as a separate client**
+- **Database layer as a separate service**
+
+Phase-1 implementation keeps all behavior in one process but introduces explicit contracts and a local gateway adapter, preparing replacement with remote clients later.
+
+See detailed plan: `docs/SEPARATED-RUNTIME-PLAN.md`.

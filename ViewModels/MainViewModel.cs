@@ -14,7 +14,8 @@ namespace XTSPrimeMoverProject.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        private readonly XTSSimulationEngine _engine;
+        private readonly IMachineGatewayService _machine;
+        private readonly IDataGatewayService _data;
         private string _statusText;
         private bool _isRunning;
         private string _partHistoryTrackingNumber;
@@ -28,6 +29,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private string _dbTableSearchText;
         private string _orchestrationStatus;
         private string _orchestrationValidationStatus;
+        private string _gatewayModeStatus;
 
         public ObservableCollection<MoverViewModel> Movers { get; }
         public ObservableCollection<MachineViewModel> Machines { get; }
@@ -158,15 +160,16 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        public int TotalPartsProduced => _engine.TotalPartsProduced;
-        public int GoodPartsCount => _engine.GoodPartsCount;
-        public int BadPartsCount => _engine.BadPartsCount;
+        public int TotalPartsProduced => _machine.TotalPartsProduced;
+        public int GoodPartsCount => _machine.GoodPartsCount;
+        public int BadPartsCount => _machine.BadPartsCount;
         public double YieldPercentage => TotalPartsProduced > 0 ? (GoodPartsCount * 100.0 / TotalPartsProduced) : 0;
-        public int PrimeMoverEnteredCount => _engine.PrimeMoverEnteredCount;
-        public int PrimeMoverExitedCount => _engine.PrimeMoverExitedCount;
-        public string DatabasePath => _engine.DatabasePath;
-        public bool EntryZoneBlink => _engine.EntryZoneBlink;
-        public bool ExitZoneBlink => _engine.ExitZoneBlink;
+        public int PrimeMoverEnteredCount => _machine.PrimeMoverEnteredCount;
+        public int PrimeMoverExitedCount => _machine.PrimeMoverExitedCount;
+        public string DatabasePath => _data.DatabasePath;
+        public string GatewayModeStatus => _gatewayModeStatus;
+        public bool EntryZoneBlink => _machine.EntryZoneBlink;
+        public bool ExitZoneBlink => _machine.ExitZoneBlink;
 
         public double SimulationSpeed
         {
@@ -180,7 +183,7 @@ namespace XTSPrimeMoverProject.ViewModels
                 }
 
                 _simulationSpeed = clamped;
-                _engine.SetSimulationSpeed(_simulationSpeed);
+                _machine.SetSimulationSpeed(_simulationSpeed);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(SimulationSpeedText));
             }
@@ -188,11 +191,15 @@ namespace XTSPrimeMoverProject.ViewModels
 
         public string SimulationSpeedText => $"Speed: {SimulationSpeed:F1}x";
 
-        public MainViewModel()
+        public MainViewModel(IMachineGatewayService machine, IDataGatewayService data, string gatewayModeStatus = "Machine Gateway: Local")
         {
-            _engine = new XTSSimulationEngine();
-            _engine.StateChanged += OnEngineStateChanged;
-            _engine.LogGenerated += OnEngineLogGenerated;
+            _machine = machine ?? throw new ArgumentNullException(nameof(machine));
+            _data = data ?? throw new ArgumentNullException(nameof(data));
+            _gatewayModeStatus = string.IsNullOrWhiteSpace(gatewayModeStatus)
+                ? "Machine Gateway: Local"
+                : gatewayModeStatus;
+            _machine.StateChanged += OnEngineStateChanged;
+            _machine.LogGenerated += OnEngineLogGenerated;
 
             _statusText = "SYSTEM STOPPED";
             _partHistoryTrackingNumber = string.Empty;
@@ -232,7 +239,7 @@ namespace XTSPrimeMoverProject.ViewModels
             PreviewOrchestrationValidationCommand = new RelayCommand(PreviewOrchestrationValidation);
             RefreshSafetyGatesCommand = new RelayCommand(RefreshSafetyGates);
 
-            _engine.SetSimulationSpeed(_simulationSpeed);
+            _machine.SetSimulationSpeed(_simulationSpeed);
 
             InitializeViewModels();
             LoadExportTables();
@@ -246,28 +253,28 @@ namespace XTSPrimeMoverProject.ViewModels
         private void InitializeViewModels()
         {
             Movers.Clear();
-            foreach (var mover in _engine.Movers)
+            foreach (var mover in _machine.Movers)
             {
                 Movers.Add(new MoverViewModel(mover));
             }
 
-            Machines.Clear();
-            foreach (var machine in _engine.Machines)
-            {
-                Machines.Add(new MachineViewModel(machine));
-            }
-
             Robots.Clear();
-            foreach (var robot in _engine.Robots)
+            foreach (var robot in _machine.Robots)
             {
                 Robots.Add(new RobotViewModel(robot));
+            }
+
+            Machines.Clear();
+            foreach (var machine in _machine.Machines)
+            {
+                Machines.Add(new MachineViewModel(machine, Robots));
             }
         }
 
         private void LoadExportTables()
         {
             ExportTables.Clear();
-            foreach (var table in _engine.GetExportableTables())
+            foreach (var table in _data.GetExportableTables())
             {
                 ExportTables.Add(table);
             }
@@ -281,7 +288,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private void LoadDbTables()
         {
             DbTables.Clear();
-            foreach (var table in _engine.GetAllTables())
+            foreach (var table in _data.GetAllTables())
             {
                 DbTables.Add(table);
             }
@@ -315,9 +322,9 @@ namespace XTSPrimeMoverProject.ViewModels
 
             try
             {
-                var columns = _engine.GetTableColumns(SelectedDbTable);
-                int totalRows = _engine.GetTableRowCount(SelectedDbTable);
-                var rows = _engine.GetTableRows(SelectedDbTable, 500);
+                var columns = _data.GetTableColumns(SelectedDbTable);
+                int totalRows = _data.GetTableRowCount(SelectedDbTable);
+                var rows = _data.GetTableRows(SelectedDbTable, 500);
 
                 var table = new DataTable(SelectedDbTable);
                 foreach (var col in columns)
@@ -379,7 +386,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private void LoadOrchestrationSteps()
         {
             OrchestrationSteps.Clear();
-            foreach (var step in _engine.GetOrchestrationSteps().OrderBy(s => s.Order))
+            foreach (var step in _machine.GetOrchestrationSteps().OrderBy(s => s.Order))
             {
                 OrchestrationSteps.Add(new OrchestrationStepEditItem
                 {
@@ -441,7 +448,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private void ApplyOrchestrationFromHmi()
         {
             var stepDefs = BuildStepDefinitionsFromEditor();
-            if (_engine.TryApplyOrchestration(stepDefs, out var message))
+            if (_machine.TryApplyOrchestration(stepDefs, out var message))
             {
                 OrchestrationStatus = message;
                 OrchestrationValidationStatus = "Apply successful.";
@@ -458,7 +465,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private void PreviewOrchestrationValidation()
         {
             var stepDefs = BuildStepDefinitionsFromEditor();
-            var errors = _engine.PreviewOrchestrationValidation(stepDefs);
+            var errors = _machine.PreviewOrchestrationValidation(stepDefs);
             if (errors.Count == 0)
             {
                 OrchestrationValidationStatus = "Validation OK: no rule violations.";
@@ -486,7 +493,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private void RefreshSafetyGates()
         {
             SafetyGates.Clear();
-            foreach (var gate in _engine.GetOrchestrationSafetyGateStatuses())
+            foreach (var gate in _machine.GetOrchestrationSafetyGateStatuses())
             {
                 SafetyGates.Add(new SafetyGateStatusItemViewModel
                 {
@@ -511,13 +518,13 @@ namespace XTSPrimeMoverProject.ViewModels
             try
             {
                 PartHistoryEvents.Clear();
-                var events = _engine.GetPartHistory(tracking);
+                var events = _data.GetPartHistory(tracking);
                 foreach (var item in events)
                 {
                     PartHistoryEvents.Add(item);
                 }
 
-                var summary = _engine.GetPartSummary(tracking);
+                var summary = _data.GetPartSummary(tracking);
                 if (summary == null)
                 {
                     PartHistoryStatus = $"No records found for {tracking}.";
@@ -544,7 +551,7 @@ namespace XTSPrimeMoverProject.ViewModels
 
             try
             {
-                string filePath = _engine.ExportTableToCsv(SelectedExportTable, _engine.GetDefaultExportDirectory());
+                string filePath = _data.ExportTableToCsv(SelectedExportTable, _data.GetDefaultExportDirectory());
                 CsvExportStatus = $"Exported {SelectedExportTable} -> {filePath}";
             }
             catch (Exception ex)
@@ -564,7 +571,7 @@ namespace XTSPrimeMoverProject.ViewModels
 
         private void RefreshWatchdogStatuses()
         {
-            var latest = _engine.GetWatchdogStatus();
+            var latest = _machine.GetWatchdogStatus();
 
             var snapshot = latest
                 .Select(x => new WatchdogStatusItemViewModel
@@ -619,21 +626,21 @@ namespace XTSPrimeMoverProject.ViewModels
 
         private void Start()
         {
-            _engine.Start();
+            _machine.Start();
             IsRunning = true;
             UpdateStatus();
         }
 
         private void Stop()
         {
-            _engine.Stop();
+            _machine.Stop();
             IsRunning = false;
             UpdateStatus();
         }
 
         private void Reset()
         {
-            _engine.Reset();
+            _machine.Reset();
             InitializeViewModels();
             IsRunning = false;
             UpdateStatus();
@@ -643,7 +650,7 @@ namespace XTSPrimeMoverProject.ViewModels
             PartHistoryEvents.Clear();
             ExecutionLogs.Clear();
             RefreshWatchdogStatuses();
-            _engine.SetSimulationSpeed(_simulationSpeed);
+            _machine.SetSimulationSpeed(_simulationSpeed);
             LoadDbTables();
             LoadOrchestrationSteps();
         }
