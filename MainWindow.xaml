@@ -354,32 +354,42 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <!-- single station card -->
-                                        <Border Margin="5" Width="185" CornerRadius="8" BorderThickness="2" Padding="10">
+                                        <Border Margin="5" Width="210" CornerRadius="10" BorderThickness="2" Padding="10" Background="#25262A">
                                             <Border.BorderBrush>
                                                 <Binding Path="StatusBadgeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
                                             </Border.BorderBrush>
-                                            <Border.Background>
-                                                <SolidColorBrush Color="#2A2A2E"/>
-                                            </Border.Background>
+                                            <Border.Effect>
+                                                <DropShadowEffect ShadowDepth="0" BlurRadius="10" Opacity="0.55"
+                                                                  Color="{Binding StationCardGlowColor, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}"/>
+                                            </Border.Effect>
                                             <Grid>
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="6"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="8"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
 
-                                                <!-- header row: icon + name + badge -->
-                                                <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                <!-- header row: step + name + badge -->
+                                                <Grid Grid.Row="0" Margin="0,0,0,5">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{Binding TypeIcon, Mode=OneWay}" FontSize="18" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding Name, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="#E6E6E6" VerticalAlignment="Center" TextWrapping="Wrap"/>
+
+                                                    <Border Grid.Column="0" CornerRadius="4" Padding="5,2" Margin="0,0,6,0" Background="#1F1F20" BorderBrush="#3F3F46" BorderThickness="1">
+                                                        <TextBlock Text="{Binding StepIndicatorText, Mode=OneWay}" Foreground="#9CDCFE" FontSize="9" FontWeight="Bold"/>
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding TypeIcon, Mode=OneWay}" FontSize="16" Margin="0,0,4,0"/>
+                                                        <TextBlock Text="{Binding Name, Mode=OneWay}" FontSize="12" FontWeight="Bold" Foreground="#E6E6E6" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+
                                                     <Border Grid.Column="2" CornerRadius="4" Padding="5,2" VerticalAlignment="Center" Margin="4,0,0,0">
                                                         <Border.Background>
                                                             <Binding Path="StatusBadgeColor" Mode="OneWay" Converter="{StaticResource StringToBrushConverter}"/>
@@ -388,23 +398,200 @@
                                                     </Border>
                                                 </Grid>
 
-                                                <!-- type description -->
-                                                <TextBlock Grid.Row="1" Text="{Binding TypeDescription, Mode=OneWay}" Foreground="#888888" FontSize="9" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                                <!-- station type and active task -->
+                                                <TextBlock Grid.Row="1" Text="{Binding TypeDescription, Mode=OneWay}" Foreground="#9A9A9A" FontSize="9" TextWrapping="Wrap"/>
 
-                                                <!-- part tracking number -->
-                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,4">
-                                                    <TextBlock Text="Part: " Foreground="#9CDCFE" FontSize="10"/>
-                                                    <TextBlock Text="{Binding PartId, Mode=OneWay}" Foreground="#CCCCCC" FontSize="10" FontWeight="Bold"/>
-                                                </StackPanel>
+                                                <Border Grid.Row="2" Margin="0,6,0,4" Padding="6,4" Background="#1F1F20" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
 
-                                                <!-- ET/PT timer -->
-                                                <TextBlock Grid.Row="3" Text="{Binding ProgressText, Mode=OneWay}" Foreground="#D7BA7D" FontSize="10" Margin="0,0,0,4"/>
+                                                        <TextBlock Grid.Column="0" Text="{Binding TaskIcon, Mode=OneWay}" FontSize="12" Margin="0,0,5,0"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding CurrentTaskText, Mode=OneWay}" Foreground="#DCDCAA" FontSize="10" TextWrapping="Wrap"/>
+
+                                                        <!-- Tiny animated activity glyphs (only when processing) -->
+                                                        <Grid Grid.Column="2" Width="18" Height="18" Margin="6,0,0,0"
+                                                              Visibility="{Binding IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                            <!-- Assembly: rotating gear -->
+                                                            <TextBlock Text="⚙" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Type, Mode=OneWay}" Value="Assembly">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                <DataTrigger.EnterActions>
+                                                                                    <BeginStoryboard x:Name="AssemblyGearSpinStoryboard">
+                                                                                        <Storyboard RepeatBehavior="Forever">
+                                                                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                                                             From="0" To="360" Duration="0:0:0.9"/>
+                                                                                        </Storyboard>
+                                                                                    </BeginStoryboard>
+                                                                                </DataTrigger.EnterActions>
+                                                                                <DataTrigger.ExitActions>
+                                                                                    <StopStoryboard BeginStoryboardName="AssemblyGearSpinStoryboard"/>
+                                                                                </DataTrigger.ExitActions>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                                <TextBlock.RenderTransform>
+                                                                    <RotateTransform CenterX="6" CenterY="6"/>
+                                                                </TextBlock.RenderTransform>
+                                                            </TextBlock>
+
+                                                            <!-- Welding: spark pulse -->
+                                                            <TextBlock Text="✦" Foreground="#FFD700" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Type, Mode=OneWay}" Value="Welding">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                <DataTrigger.EnterActions>
+                                                                                    <BeginStoryboard x:Name="WeldingSparkPulseStoryboard">
+                                                                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.3" To="1.0" Duration="0:0:0.18"/>
+                                                                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" From="0.7" To="1.3" Duration="0:0:0.18"/>
+                                                                                            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" From="0.7" To="1.3" Duration="0:0:0.18"/>
+                                                                                        </Storyboard>
+                                                                                    </BeginStoryboard>
+                                                                                </DataTrigger.EnterActions>
+                                                                                <DataTrigger.ExitActions>
+                                                                                    <StopStoryboard BeginStoryboardName="WeldingSparkPulseStoryboard"/>
+                                                                                </DataTrigger.ExitActions>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                                <TextBlock.RenderTransform>
+                                                                    <ScaleTransform CenterX="6" CenterY="6"/>
+                                                                </TextBlock.RenderTransform>
+                                                            </TextBlock>
+
+                                                            <!-- Inspection: scanning sweep -->
+                                                            <Grid Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid.Style>
+                                                                    <Style TargetType="Grid">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Type, Mode=OneWay}" Value="Inspection">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Grid.Style>
+                                                                <Ellipse Stroke="#9CDCFE" StrokeThickness="1" Fill="Transparent"/>
+                                                                <Rectangle Width="2" Height="10" Fill="#9CDCFE" HorizontalAlignment="Center" VerticalAlignment="Center" RadiusX="1" RadiusY="1">
+                                                                    <Rectangle.RenderTransform>
+                                                                        <TranslateTransform X="-4"/>
+                                                                    </Rectangle.RenderTransform>
+                                                                    <Rectangle.Triggers>
+                                                                        <EventTrigger RoutedEvent="Rectangle.Loaded">
+                                                                            <BeginStoryboard>
+                                                                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                                                     From="-4" To="4" Duration="0:0:0.45"/>
+                                                                                </Storyboard>
+                                                                            </BeginStoryboard>
+                                                                        </EventTrigger>
+                                                                    </Rectangle.Triggers>
+                                                                </Rectangle>
+                                                            </Grid>
+
+                                                            <!-- Testing: oscillating waveform dot -->
+                                                            <Grid Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid.Style>
+                                                                    <Style TargetType="Grid">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Type, Mode=OneWay}" Value="Testing">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Grid.Style>
+                                                                <Rectangle Width="10" Height="1" Fill="#9CDCFE" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                                <Ellipse Width="4" Height="4" Fill="#FFD700" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                                    <Ellipse.RenderTransform>
+                                                                        <TranslateTransform X="0"/>
+                                                                    </Ellipse.RenderTransform>
+                                                                    <Ellipse.Triggers>
+                                                                        <EventTrigger RoutedEvent="Ellipse.Loaded">
+                                                                            <BeginStoryboard>
+                                                                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                                                     From="0" To="8" Duration="0:0:0.35"/>
+                                                                                </Storyboard>
+                                                                            </BeginStoryboard>
+                                                                        </EventTrigger>
+                                                                    </Ellipse.Triggers>
+                                                                </Ellipse>
+                                                            </Grid>
+
+                                                            <!-- Packaging: moving label tag icon -->
+                                                            <Grid Width="16" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Grid.Style>
+                                                                    <Style TargetType="Grid">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Type, Mode=OneWay}" Value="Packaging">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Grid.Style>
+
+                                                                <Rectangle Width="12" Height="7" RadiusX="1" RadiusY="1"
+                                                                           Stroke="#D7BA7D" StrokeThickness="1"
+                                                                           Fill="#2B2B2E"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center"/>
+                                                                <Ellipse Width="1.8" Height="1.8" Fill="#D7BA7D"
+                                                                         HorizontalAlignment="Left" Margin="3.3,0,0,0"
+                                                                         VerticalAlignment="Center"/>
+
+                                                                <Grid.RenderTransform>
+                                                                    <TranslateTransform X="-4"/>
+                                                                </Grid.RenderTransform>
+                                                                <Grid.Triggers>
+                                                                    <EventTrigger RoutedEvent="Grid.Loaded">
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                                                 From="-4" To="4" Duration="0:0:0.45"/>
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                                 From="0.55" To="1.0" Duration="0:0:0.22" AutoReverse="True" RepeatBehavior="Forever"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </EventTrigger>
+                                                                </Grid.Triggers>
+                                                            </Grid>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- part + timing -->
+                                                <Grid Grid.Row="3" Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Grid.Column="0" Text="{Binding PartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding EtPtCompactText, Mode=OneWay}" Foreground="#D7BA7D" FontSize="10" FontWeight="Bold"/>
+                                                </Grid>
+
+                                                <TextBlock Grid.Row="4" Text="{Binding ProgressText, Mode=OneWay}" Foreground="#B5CEA8" FontSize="10" Margin="0,0,0,4"/>
 
                                                 <!-- spacer -->
-                                                <Rectangle Grid.Row="4"/>
+                                                <Rectangle Grid.Row="5"/>
 
                                                 <!-- progress bar -->
-                                                <ProgressBar Grid.Row="5" Height="8" Margin="0,2,0,0"
+                                                <ProgressBar Grid.Row="6" Height="9" Margin="0,2,0,0"
                                                              Minimum="0" Maximum="100"
                                                              Value="{Binding Progress, Mode=OneWay}"
                                                              Background="#3F3F46" BorderThickness="0">

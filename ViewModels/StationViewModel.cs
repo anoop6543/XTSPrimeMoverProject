@@ -47,6 +47,48 @@ namespace XTSPrimeMoverProject.ViewModels
             _                       => "Process Step"
         };
 
+        public string TaskIcon => _station.Type switch
+        {
+            StationType.Assembly => "🛠",
+            StationType.Welding => "🔥",
+            StationType.Inspection => "📷",
+            StationType.Testing => "📈",
+            StationType.Packaging => "🏷",
+            _ => "⚙"
+        };
+
+        public string TaskSummary => _station.Type switch
+        {
+            StationType.Assembly => "Pick-align-fasten components",
+            StationType.Welding => "Fuse joint at controlled heat",
+            StationType.Inspection => "Scan dimensions and surface",
+            StationType.Testing => "Validate functional behavior",
+            StationType.Packaging => "Label and prep outbound",
+            _ => "Process operation"
+        };
+
+        public string CurrentTaskText => _station.Status switch
+        {
+            StationStatus.Processing => $"{TaskSummary} (active)",
+            StationStatus.Complete => $"{TaskSummary} (completed)",
+            StationStatus.Error => $"{TaskSummary} (faulted)",
+            _ => $"{TaskSummary} (standby)"
+        };
+
+        public string StepIndicatorText => $"S{StationIndex + 1} / {StationCount}";
+
+        public string EtPtCompactText => _station.Status == StationStatus.Processing
+            ? $"ET {ElapsedSeconds:F1}s / PT {ProcessTimeSeconds:F1}s"
+            : $"PT {ProcessTimeSeconds:F1}s";
+
+        public string StationCardGlowColor => _station.Status switch
+        {
+            StationStatus.Processing => "#00C875",
+            StationStatus.Complete => "#0078D4",
+            StationStatus.Error => "#D83B01",
+            _ => "#3F3F46"
+        };
+
         public string StatusBadgeText => _station.Status switch
         {
             StationStatus.Processing => "RUNNING",
@@ -100,6 +142,12 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(ProgressBarColor));
             OnPropertyChanged(nameof(ProgressText));
             OnPropertyChanged(nameof(IsActive));
+            OnPropertyChanged(nameof(TaskIcon));
+            OnPropertyChanged(nameof(TaskSummary));
+            OnPropertyChanged(nameof(CurrentTaskText));
+            OnPropertyChanged(nameof(StepIndicatorText));
+            OnPropertyChanged(nameof(EtPtCompactText));
+            OnPropertyChanged(nameof(StationCardGlowColor));
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
