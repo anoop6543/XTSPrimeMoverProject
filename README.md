@@ -11,6 +11,12 @@ WPF + .NET 10 simulation of a Beckhoff-style XTS transport line with service-dri
 - Transfers: 4 robots (mover ↔ machine)
 - Station chains: 18 total stations
 - Persistence: SQLite (`XTSFactorySim.db` in output path)
+- Runtime split-ready gateway boundaries:
+  - `IMachineGatewayService` (machine commands + telemetry)
+  - `IDataGatewayService` (history/tables/export)
+  - `LocalSimulationServiceGateway` implements both interfaces for local mode
+  - `RemoteTwinCatMachineGatewayMock` simulates remote machine boundary with configurable latency
+- Runtime gateway mode toggle via app resources in `App.xaml`
 - PLC/TwinCAT-style FBs:
   - Motion FBs (`McPower`, `McMoveVelocity`, `McHalt`, `FbXtsMoverAxis`)
   - Process FBs (`TON`, alarm latch, machine cycle sequencer)
@@ -33,20 +39,26 @@ WPF + .NET 10 simulation of a Beckhoff-style XTS transport line with service-dri
 ### Main visualization
 - Beckhoff-like oval track with lane markings, seams/module look
 - Entry / Load and Exit / Unload zones with live blinkers
-- Machine mini-HMIs on main canvas with PLC state + indexing
+- Machine mini-HMIs on main canvas with outward spacing for readability
+- Robot transfer overlays on canvas:
+  - moving robot glyphs between mover dock and machine dock points
+  - animated dashed transfer lines with glow
+  - direction arrowheads at active destination end
 
 ### Line HMI (right panel)
 - Production counters and yield
+- Gateway mode indicator (Local vs Remote TwinCAT Mock)
 - Color/flow legend (what yellow/BaseLayer means, etc.)
 - Mover live explainer:
   - state, part, next target, wait reason, position
 - Machine runtime tracking:
   - action, station, part, ET/PT, fault text
-- Robot transfer status and progress
+- Robot transfer status and progress:
+  - lane direction, stage, transfer progress, active/idle badge
 - Watchdog status table (code/count/last object/time/message)
 
 ### Execution Logger (bottom)
-- Scrollable runtime log stream for movement, transfers, alarms, recoveries
+- Auto-scroll runtime log stream for movement, transfers, alarms, recoveries
 
 ## SQLite Logging
 
@@ -96,6 +108,10 @@ Tables currently used:
 - PLC/Motion FBs: `Services/TwinCAT*.cs`
 - Models: `Models/*.cs`
 - View root: `ViewModels/MainViewModel.cs`
+- Machine/data gateway contracts: `Services/HmiServiceContracts.cs`
+- Local gateway adapter: `Services/LocalSimulationServiceGateway.cs`
+- Remote machine mock: `Services/RemoteTwinCatMock/RemoteTwinCatMachineGatewayMock.cs`
 - Main UI: `MainWindow.xaml`
 - Architecture: `docs/ARCHITECTURE.md`
+- Split-runtime plan: `docs/SEPARATED-RUNTIME-PLAN.md`
 - Agent context: `AGENTS.md`

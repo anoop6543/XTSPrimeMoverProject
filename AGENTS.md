@@ -17,11 +17,18 @@ This file is the persistent repo-level handoff context for future Copilot sessio
 - Watchdog detection + controlled recovery/escalation
 - SQLite traceability and alarms
 - Operator-focused HMI with mover/machine/robot diagnostics
-- Execution logger panel and speed control slider
+- Robot movement overlays on main canvas (moving glyphs + dashed transfer lines + direction arrowheads)
+- Machine mini-HMIs pulled away from track for clarity
+- Machine tab station cards enhanced with task-level visuals + tiny animated processing glyphs
+- Gateway mode indicator in HMI (Local vs Remote TwinCAT mock)
+- Auto-scrolling execution logger panel and speed control slider
 
 ## Core Runtime Files
 - Engine: `Services/XTSSimulationEngine.cs`
 - DB logger: `Services/SimulationDataLogger.cs`
+- Gateway contracts: `Services/HmiServiceContracts.cs`
+- Local gateway: `Services/LocalSimulationServiceGateway.cs`
+- Remote machine mock: `Services/RemoteTwinCatMock/RemoteTwinCatMachineGatewayMock.cs`
 - PLC/Motion FBs:
   - `Services/TwinCATMotionFunctionBlocks.cs`
   - `Services/TwinCATPlcFunctionBlocks.cs`
@@ -51,6 +58,7 @@ Keep schema stable unless a migration is intentionally added.
 - Routing order remains: `M0 -> M1 -> M2 -> M3 -> Exit`
 - `Part.NextMachineIndex` is the machine targeting source of truth.
 - Engine logs are operational diagnostics, not only dev traces.
+- Machine/data boundary remains interface-driven (`IMachineGatewayService`, `IDataGatewayService`) even in local mode.
 
 ## Handoff / Continue on Another Laptop
 1. Clone repo from GitHub.
@@ -74,3 +82,4 @@ Copilot chat/session history is environment-scoped. Persistent continuity comes 
 - machine transfer visibility and ET/PT diagnostics
 - watchdog transparency (codes/counters/last object/message)
 - maintain operator-grade HMI readability
+- continue externalization path from local gateway to real TwinCAT/data service clients

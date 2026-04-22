@@ -78,18 +78,20 @@ SQLite persistence for events/results/alarms/errors/snapshots.
 ## 3.3 Presentation Layer
 
 ### ViewModels
-- `MainViewModel`: runtime composition root; commands; aggregate metrics; speed control; watchdog status feed
+- `MainViewModel`: runtime composition root; commands; aggregate metrics; speed control; watchdog status feed; gateway mode status
 - `MoverViewModel`: operator explanation fields (`FlowMeaning`, `WaitReason`, target info)
-- `MachineViewModel`: action and ET/PT summaries
-- `StationViewModel`: per-station ET/PT diagnostics
-- `RobotViewModel`: transfer state and progress
+- `MachineViewModel`: action and ET/PT summaries plus assigned-robot transfer visualization for machine tabs
+- `StationViewModel`: per-station ET/PT diagnostics and operation-centric task descriptors
+- `RobotViewModel`: transfer state, direction, stage, progress, canvas coordinates, and transfer arrowhead points
 
 ### MainWindow.xaml
 - Beckhoff-like oval track rendering (lane/seam aesthetics)
-- machine mini-HMIs near track
+- machine mini-HMIs offset outward from track for readability
+- robot canvas overlays with moving glyphs, animated dashed transfer lines, and direction arrowheads
 - entry/load and exit/unload zones + blinkers
 - right-side Line HMI diagnostics sections
-- bottom execution logger
+- enhanced station cards on machine tabs with live task-centric visuals and activity glyph animations
+- bottom execution logger with auto-scroll to latest event
 
 ---
 
@@ -153,6 +155,14 @@ The modernization target is:
 - **HMI runtime as a separate client**
 - **Database layer as a separate service**
 
-Phase-1 implementation keeps all behavior in one process but introduces explicit contracts and a local gateway adapter, preparing replacement with remote clients later.
+Current implementation status:
+- Gateway contract split completed:
+  - `IMachineGatewayService` for machine commands/telemetry
+  - `IDataGatewayService` for data/history/export APIs
+- `LocalSimulationServiceGateway` implements both interfaces.
+- `RemoteTwinCatMachineGatewayMock` added for remote-boundary simulation (latency-aware).
+- Runtime machine gateway toggle implemented through `App.xaml` resources.
+
+Phase-1 keeps all behavior in one process but now uses explicit service boundaries and a swappable machine gateway implementation.
 
 See detailed plan: `docs/SEPARATED-RUNTIME-PLAN.md`.
