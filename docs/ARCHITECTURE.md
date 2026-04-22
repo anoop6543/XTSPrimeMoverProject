@@ -139,7 +139,7 @@ Schema changes should be treated as explicit migrations.
 
 ## 7. Continuation Rules (multi-machine/dev handoff)
 
-1. Read `README.md`, this file, then `AGENTS.md`.
+1. Read `README.md` and this file first.
 2. Keep process logic in `Services/` and `Models/`.
 3. Add ViewModel fields before changing XAML bindings.
 4. For read-only display values, use `Mode=OneWay` in XAML.
