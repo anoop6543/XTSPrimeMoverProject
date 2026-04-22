@@ -204,20 +204,20 @@ namespace XTSPrimeMoverProject.ViewModels
             {
                 case 0:
                     moverX = 730; moverY = 205;
-                    machineX = 790; machineY = 200;
+                    machineX = 890; machineY = 120;
                     break;
                 case 1:
                     moverX = 730; moverY = 395;
-                    machineX = 790; machineY = 440;
+                    machineX = 860; machineY = 450;
                     break;
                 case 2:
                     moverX = 250; moverY = 395;
-                    machineX = 190; machineY = 440;
+                    machineX = 120; machineY = 450;
                     break;
                 case 3:
                 default:
                     moverX = 250; moverY = 205;
-                    machineX = 190; machineY = 200;
+                    machineX = 90; machineY = 120;
                     break;
             }
         }

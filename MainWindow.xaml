@@ -649,7 +649,7 @@
                             </Border>
 
                             <Canvas>
-                                <Border Canvas.Left="790" Canvas.Top="150" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[0], Mode=OneWay}">
+                                <Border Canvas.Left="890" Canvas.Top="70" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[0], Mode=OneWay}">
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
@@ -667,7 +667,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Canvas.Left="790" Canvas.Top="390" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[1], Mode=OneWay}">
+                                <Border Canvas.Left="860" Canvas.Top="400" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[1], Mode=OneWay}">
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
@@ -685,7 +685,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Canvas.Left="-10" Canvas.Top="390" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[2], Mode=OneWay}">
+                                <Border Canvas.Left="-80" Canvas.Top="400" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[2], Mode=OneWay}">
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
@@ -703,7 +703,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Canvas.Left="-10" Canvas.Top="150" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[3], Mode=OneWay}">
+                                <Border Canvas.Left="-110" Canvas.Top="70" Width="200" Background="#2B2B2E" BorderBrush="#3F3F46" BorderThickness="2" CornerRadius="5" Padding="6" DataContext="{Binding Machines[3], Mode=OneWay}">
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name, Mode=OneWay}" Foreground="#00D4FF" FontWeight="Bold" FontSize="11"/>
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>

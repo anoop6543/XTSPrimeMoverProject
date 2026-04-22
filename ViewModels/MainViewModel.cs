@@ -41,7 +41,7 @@ namespace XTSPrimeMoverProject.ViewModels
         public ObservableCollection<string> DbTables { get; }
         public ObservableCollection<OrchestrationStepEditItem> OrchestrationSteps { get; }
         public ObservableCollection<SafetyGateStatusItemViewModel> SafetyGates { get; }
-        private DataView _dbTableRowsView;
+        private DataView _dbTableRowsView = CreateEmptyDbTableView();
 
         public DataView DbTableRowsView
         {

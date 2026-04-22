@@ -24,9 +24,19 @@ namespace XTSPrimeMoverProject.ViewModels
         public double Progress => _machine.CurrentStationIndex >= 0 && _machine.CurrentStationIndex < _machine.Stations.Count
             ? (_machine.Stations[_machine.CurrentStationIndex].ElapsedTime / _machine.Stations[_machine.CurrentStationIndex].ProcessTime) * 100
             : 0;
-        public string CurrentPartId => _machine.CurrentStationIndex >= 0 && _machine.CurrentStationIndex < _machine.Stations.Count && _machine.Stations[_machine.CurrentStationIndex].CurrentPart != null
-            ? _machine.Stations[_machine.CurrentStationIndex].CurrentPart.TrackingNumber
-            : "-";
+        public string CurrentPartId
+        {
+            get
+            {
+                if (_machine.CurrentStationIndex < 0 || _machine.CurrentStationIndex >= _machine.Stations.Count)
+                {
+                    return "-";
+                }
+
+                var station = _machine.Stations[_machine.CurrentStationIndex];
+                return station.CurrentPart?.TrackingNumber ?? "-";
+            }
+        }
         public int PartsEnteredCount => _machine.PartsEnteredCount;
         public int PartsExitedCount => _machine.PartsExitedCount;
         public string SequencerState => _machine.SequencerState.ToString();

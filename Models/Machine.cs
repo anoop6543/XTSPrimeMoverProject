@@ -140,7 +140,12 @@ namespace XTSPrimeMoverProject.Models
                     {
                         if (Stations[CurrentStationIndex + 1].Status == StationStatus.Idle)
                         {
-                            Part part = Stations[CurrentStationIndex].CompletePart();
+                            Part? part = Stations[CurrentStationIndex].CompletePart();
+                            if (part == null)
+                            {
+                                return false;
+                            }
+
                             CurrentStationIndex++;
                             Stations[CurrentStationIndex].StartProcessing(part);
                             return false;
