@@ -21,12 +21,14 @@ namespace XTSPrimeMoverProject
     /// </summary>
     public partial class MainWindow : Window
     {
+        private Services.XTSSimulationEngine? _engine;
+
         public MainWindow()
         {
             InitializeComponent();
 
-            var engine = new Services.XTSSimulationEngine();
-            var localGateway = new Services.LocalSimulationServiceGateway(engine);
+            _engine = new Services.XTSSimulationEngine();
+            var localGateway = new Services.LocalSimulationServiceGateway(_engine);
 
             bool useRemoteMock = ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
             int latencyMs = ReadAppIntSetting("RemoteTwinCatMachineGatewayMockLatencyMs", defaultValue: 40);
@@ -44,6 +46,13 @@ namespace XTSPrimeMoverProject
             DataContext = viewModel;
 
             viewModel.ExecutionLogs.CollectionChanged += OnExecutionLogsCollectionChanged;
+            Closed += OnWindowClosed;
+        }
+
+        private void OnWindowClosed(object? sender, EventArgs e)
+        {
+            _engine?.Dispose();
+            _engine = null;
         }
 
         private void OnExecutionLogsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
