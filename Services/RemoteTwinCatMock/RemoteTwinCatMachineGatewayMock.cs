@@ -9,10 +9,13 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
     /// Mock remote TwinCAT machine gateway.
     /// Wraps any IMachineGatewayService and injects a small command latency
     /// to emulate a remote control boundary.
+    /// All remote-boundary calls are wrapped with error handling to simulate
+    /// real network failure modes and provide graceful degradation.
     /// </summary>
     public sealed class RemoteTwinCatMachineGatewayMock : IMachineGatewayService
     {
         private readonly IMachineGatewayService _inner;
+        private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
         private readonly int _commandLatencyMs;
 
         public RemoteTwinCatMachineGatewayMock(IMachineGatewayService inner, int commandLatencyMs = 40)
@@ -42,43 +45,106 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
         public void Start()
         {
-            SimulateNetworkCommandLatency();
-            _inner.Start();
+            try
+            {
+                SimulateNetworkCommandLatency();
+                _inner.Start();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.Start", ex);
+            }
         }
 
         public void Stop()
         {
-            SimulateNetworkCommandLatency();
-            _inner.Stop();
+            try
+            {
+                SimulateNetworkCommandLatency();
+                _inner.Stop();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.Stop", ex);
+            }
         }
 
         public void Reset()
         {
-            SimulateNetworkCommandLatency();
-            _inner.Reset();
+            try
+            {
+                SimulateNetworkCommandLatency();
+                _inner.Reset();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.Reset", ex);
+            }
         }
 
         public void SetSimulationSpeed(double speed)
         {
-            SimulateNetworkCommandLatency();
-            _inner.SetSimulationSpeed(speed);
+            try
+            {
+                SimulateNetworkCommandLatency();
+                _inner.SetSimulationSpeed(speed);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.SetSimulationSpeed", ex);
+            }
         }
 
-        public IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus() => _inner.GetWatchdogStatus();
+        public IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus()
+        {
+            return _errorHandler.ExecuteWithRetry(
+                () => _inner.GetWatchdogStatus(),
+                "RemoteMock.GetWatchdogStatus",
+                ErrorCategory.Gateway,
+                fallback: Array.Empty<WatchdogStatusEntry>())!;
+        }
 
-        public IReadOnlyList<ProductionSequenceStep> GetOrchestrationSteps() => _inner.GetOrchestrationSteps();
+        public IReadOnlyList<ProductionSequenceStep> GetOrchestrationSteps()
+        {
+            return _errorHandler.ExecuteWithRetry(
+                () => _inner.GetOrchestrationSteps(),
+                "RemoteMock.GetOrchestrationSteps",
+                ErrorCategory.Gateway,
+                fallback: Array.Empty<ProductionSequenceStep>())!;
+        }
 
         public bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message)
         {
-            SimulateNetworkCommandLatency();
-            return _inner.TryApplyOrchestration(stepDefinitions, out message);
+            try
+            {
+                SimulateNetworkCommandLatency();
+                return _inner.TryApplyOrchestration(stepDefinitions, out message);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.TryApplyOrchestration", ex);
+                message = $"Remote gateway error: {ex.Message}";
+                return false;
+            }
         }
 
         public IReadOnlyList<string> PreviewOrchestrationValidation(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions)
-            => _inner.PreviewOrchestrationValidation(stepDefinitions);
+        {
+            return _errorHandler.ExecuteWithRetry(
+                () => _inner.PreviewOrchestrationValidation(stepDefinitions),
+                "RemoteMock.PreviewOrchestrationValidation",
+                ErrorCategory.Gateway,
+                fallback: new List<string> { "Validation unavailable due to remote gateway error." })!;
+        }
 
         public IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses()
-            => _inner.GetOrchestrationSafetyGateStatuses();
+        {
+            return _errorHandler.ExecuteWithRetry(
+                () => _inner.GetOrchestrationSafetyGateStatuses(),
+                "RemoteMock.GetOrchestrationSafetyGateStatuses",
+                ErrorCategory.Gateway,
+                fallback: Array.Empty<SafetyGateStatus>())!;
+        }
 
         private void SimulateNetworkCommandLatency()
         {
@@ -88,9 +154,28 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
             }
         }
 
-        private void OnInnerStateChanged(object? sender, EventArgs e) => StateChanged?.Invoke(this, EventArgs.Empty);
+        private void OnInnerStateChanged(object? sender, EventArgs e)
+        {
+            try
+            {
+                StateChanged?.Invoke(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.OnInnerStateChanged", ex, wasRecovered: true);
+            }
+        }
 
         private void OnInnerLogGenerated(object? sender, string message)
-            => LogGenerated?.Invoke(this, $"[RemoteTwinCATMock] {message}");
+        {
+            try
+            {
+                LogGenerated?.Invoke(this, $"[RemoteTwinCATMock] {message}");
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.OnInnerLogGenerated", ex, wasRecovered: true);
+            }
+        }
     }
 }

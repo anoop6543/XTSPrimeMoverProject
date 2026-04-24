@@ -12,6 +12,7 @@ namespace XTSPrimeMoverProject.Services
     public class SimulationDataLogger
     {
         private readonly string _connectionString;
+        private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
         private static readonly HashSet<string> AllowedTables = new(StringComparer.OrdinalIgnoreCase)
         {
             "Recipes",
@@ -30,7 +31,17 @@ namespace XTSPrimeMoverProject.Services
         {
             DatabasePath = dbPath ?? Path.Combine(AppContext.BaseDirectory, "XTSFactorySim.db");
             _connectionString = $"Data Source={DatabasePath}";
-            Initialize();
+            InitializeSafe();
+        }
+
+        private void InitializeSafe()
+        {
+            _errorHandler.ExecuteWithRetry(
+                Initialize,
+                "DB.Initialize",
+                ErrorCategory.Database,
+                maxRetries: 3,
+                baseDelayMs: 200);
         }
 
         private void Initialize()
@@ -124,93 +135,108 @@ CREATE TABLE IF NOT EXISTS Alarms (
 
         public void SeedRecipes(IEnumerable<Machine> machines)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            using var delete = connection.CreateCommand();
-            delete.CommandText = "DELETE FROM Recipes";
-            delete.ExecuteNonQuery();
-
-            foreach (var machine in machines)
+            var machineList = machines.ToList();
+            _errorHandler.ExecuteWithRetry(() =>
             {
-                foreach (var station in machine.Stations)
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                using var delete = connection.CreateCommand();
+                delete.CommandText = "DELETE FROM Recipes";
+                delete.ExecuteNonQuery();
+
+                foreach (var machine in machineList)
                 {
-                    using var cmd = connection.CreateCommand();
-                    cmd.CommandText = @"
+                    foreach (var station in machine.Stations)
+                    {
+                        using var cmd = connection.CreateCommand();
+                        cmd.CommandText = @"
 INSERT INTO Recipes (MachineId, StationId, MachineName, StationName, StationType, ProcessTimeSec, DefectRate, CreatedAt)
 VALUES ($machineId, $stationId, $machineName, $stationName, $stationType, $processTime, $defectRate, $createdAt);";
-                    cmd.Parameters.AddWithValue("$machineId", machine.MachineId);
-                    cmd.Parameters.AddWithValue("$stationId", station.StationId);
-                    cmd.Parameters.AddWithValue("$machineName", machine.Name);
-                    cmd.Parameters.AddWithValue("$stationName", station.Name);
-                    cmd.Parameters.AddWithValue("$stationType", station.Type.ToString());
-                    cmd.Parameters.AddWithValue("$processTime", station.ProcessTime);
-                    cmd.Parameters.AddWithValue("$defectRate", station.DefectRate);
-                    cmd.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("o"));
-                    cmd.ExecuteNonQuery();
+                        cmd.Parameters.AddWithValue("$machineId", machine.MachineId);
+                        cmd.Parameters.AddWithValue("$stationId", station.StationId);
+                        cmd.Parameters.AddWithValue("$machineName", machine.Name);
+                        cmd.Parameters.AddWithValue("$stationName", station.Name);
+                        cmd.Parameters.AddWithValue("$stationType", station.Type.ToString());
+                        cmd.Parameters.AddWithValue("$processTime", station.ProcessTime);
+                        cmd.Parameters.AddWithValue("$defectRate", station.DefectRate);
+                        cmd.Parameters.AddWithValue("$createdAt", DateTime.UtcNow.ToString("o"));
+                        cmd.ExecuteNonQuery();
+                    }
                 }
-            }
+            }, "DB.SeedRecipes", ErrorCategory.Database);
         }
 
         public void LogPartCreated(Part part)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 INSERT OR REPLACE INTO Parts (PartId, TrackingNumber, CreatedAt, EnteredPrimeMoverAt, ExitedPrimeMoverAt, FinalStatus, IsGood, HasDefect)
 VALUES ($partId, $tracking, $createdAt, $enteredAt, NULL, NULL, NULL, $hasDefect);";
-            cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
-            cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
-            cmd.Parameters.AddWithValue("$createdAt", part.CreatedAt.ToString("o"));
-            cmd.Parameters.AddWithValue("$enteredAt", part.EnteredPrimeMoverAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"));
-            cmd.Parameters.AddWithValue("$hasDefect", part.HasDefect ? 1 : 0);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
+                cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
+                cmd.Parameters.AddWithValue("$createdAt", part.CreatedAt.ToString("o"));
+                cmd.Parameters.AddWithValue("$enteredAt", part.EnteredPrimeMoverAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("$hasDefect", part.HasDefect ? 1 : 0);
+                cmd.ExecuteNonQuery();
+            }, "DB.LogPartCreated", ErrorCategory.Database);
         }
 
         public void LogPartEvent(Part part, string eventType, string location, string details)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 INSERT INTO PartEvents (PartId, TrackingNumber, EventTime, EventType, Location, Details)
 VALUES ($partId, $tracking, $eventTime, $eventType, $location, $details);";
-            cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
-            cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
-            cmd.Parameters.AddWithValue("$eventTime", DateTime.UtcNow.ToString("o"));
-            cmd.Parameters.AddWithValue("$eventType", eventType);
-            cmd.Parameters.AddWithValue("$location", location);
-            cmd.Parameters.AddWithValue("$details", details);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
+                cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
+                cmd.Parameters.AddWithValue("$eventTime", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("$eventType", eventType);
+                cmd.Parameters.AddWithValue("$location", location);
+                cmd.Parameters.AddWithValue("$details", details);
+                cmd.ExecuteNonQuery();
+            }, "DB.LogPartEvent", ErrorCategory.Database);
         }
 
         public void LogMachineEntry(Machine machine, Part part)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 INSERT INTO MachineRuns (MachineId, MachineName, PartId, TrackingNumber, EnteredAt, ExitedAt, IsGood)
 VALUES ($machineId, $machineName, $partId, $tracking, $enteredAt, NULL, NULL);";
-            cmd.Parameters.AddWithValue("$machineId", machine.MachineId);
-            cmd.Parameters.AddWithValue("$machineName", machine.Name);
-            cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
-            cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
-            cmd.Parameters.AddWithValue("$enteredAt", DateTime.UtcNow.ToString("o"));
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$machineId", machine.MachineId);
+                cmd.Parameters.AddWithValue("$machineName", machine.Name);
+                cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
+                cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
+                cmd.Parameters.AddWithValue("$enteredAt", DateTime.UtcNow.ToString("o"));
+                cmd.ExecuteNonQuery();
+            }, "DB.LogMachineEntry", ErrorCategory.Database);
         }
 
         public void LogMachineExit(Machine machine, Part part)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 UPDATE MachineRuns
 SET ExitedAt = $exitedAt,
     IsGood = $isGood
@@ -221,134 +247,152 @@ WHERE RunId = (
     ORDER BY RunId DESC
     LIMIT 1
 );";
-            cmd.Parameters.AddWithValue("$machineId", machine.MachineId);
-            cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
-            cmd.Parameters.AddWithValue("$exitedAt", DateTime.UtcNow.ToString("o"));
-            cmd.Parameters.AddWithValue("$isGood", part.HasDefect ? 0 : 1);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$machineId", machine.MachineId);
+                cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
+                cmd.Parameters.AddWithValue("$exitedAt", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("$isGood", part.HasDefect ? 0 : 1);
+                cmd.ExecuteNonQuery();
+            }, "DB.LogMachineExit", ErrorCategory.Database);
         }
 
         public void LogPartResult(Part part, int totalStations)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            using (var partUpdate = connection.CreateCommand())
+            _errorHandler.ExecuteWithRetry(() =>
             {
-                partUpdate.CommandText = @"
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                using (var partUpdate = connection.CreateCommand())
+                {
+                    partUpdate.CommandText = @"
 UPDATE Parts
 SET ExitedPrimeMoverAt = $exitedAt,
     FinalStatus = $finalStatus,
     IsGood = $isGood,
     HasDefect = $hasDefect
 WHERE PartId = $partId;";
-                partUpdate.Parameters.AddWithValue("$exitedAt", part.ExitedPrimeMoverAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"));
-                partUpdate.Parameters.AddWithValue("$finalStatus", part.Status.ToString());
-                partUpdate.Parameters.AddWithValue("$isGood", part.Status == PartStatus.Good ? 1 : 0);
-                partUpdate.Parameters.AddWithValue("$hasDefect", part.HasDefect ? 1 : 0);
-                partUpdate.Parameters.AddWithValue("$partId", part.PartId.ToString());
-                partUpdate.ExecuteNonQuery();
-            }
+                    partUpdate.Parameters.AddWithValue("$exitedAt", part.ExitedPrimeMoverAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"));
+                    partUpdate.Parameters.AddWithValue("$finalStatus", part.Status.ToString());
+                    partUpdate.Parameters.AddWithValue("$isGood", part.Status == PartStatus.Good ? 1 : 0);
+                    partUpdate.Parameters.AddWithValue("$hasDefect", part.HasDefect ? 1 : 0);
+                    partUpdate.Parameters.AddWithValue("$partId", part.PartId.ToString());
+                    partUpdate.ExecuteNonQuery();
+                }
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 INSERT INTO Results (PartId, TrackingNumber, CompletedAt, FinalStatus, CompletedStations, TotalStations)
 VALUES ($partId, $tracking, $completedAt, $finalStatus, $completedStations, $totalStations);";
-            cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
-            cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
-            cmd.Parameters.AddWithValue("$completedAt", DateTime.UtcNow.ToString("o"));
-            cmd.Parameters.AddWithValue("$finalStatus", part.Status.ToString());
-            cmd.Parameters.AddWithValue("$completedStations", part.CompletedStations);
-            cmd.Parameters.AddWithValue("$totalStations", totalStations);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$partId", part.PartId.ToString());
+                cmd.Parameters.AddWithValue("$tracking", part.TrackingNumber);
+                cmd.Parameters.AddWithValue("$completedAt", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("$finalStatus", part.Status.ToString());
+                cmd.Parameters.AddWithValue("$completedStations", part.CompletedStations);
+                cmd.Parameters.AddWithValue("$totalStations", totalStations);
+                cmd.ExecuteNonQuery();
+            }, "DB.LogPartResult", ErrorCategory.Database);
         }
 
         public void LogSnapshot(int enteredPrimeMover, int goodExit, int badExit)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 INSERT INTO ProductionSnapshots (SnapshotTime, PrimeMoverEntered, PrimeMoverGoodExit, PrimeMoverBadExit)
 VALUES ($time, $entered, $good, $bad);";
-            cmd.Parameters.AddWithValue("$time", DateTime.UtcNow.ToString("o"));
-            cmd.Parameters.AddWithValue("$entered", enteredPrimeMover);
-            cmd.Parameters.AddWithValue("$good", goodExit);
-            cmd.Parameters.AddWithValue("$bad", badExit);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$time", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("$entered", enteredPrimeMover);
+                cmd.Parameters.AddWithValue("$good", goodExit);
+                cmd.Parameters.AddWithValue("$bad", badExit);
+                cmd.ExecuteNonQuery();
+            }, "DB.LogSnapshot", ErrorCategory.Database);
         }
 
         public void LogError(string source, string message, string? detail = null)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 INSERT INTO ErrorLogs (LoggedAt, Source, Message, Detail)
 VALUES ($time, $source, $message, $detail);";
-            cmd.Parameters.AddWithValue("$time", DateTime.UtcNow.ToString("o"));
-            cmd.Parameters.AddWithValue("$source", source);
-            cmd.Parameters.AddWithValue("$message", message);
-            cmd.Parameters.AddWithValue("$detail", detail ?? string.Empty);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$time", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("$source", source);
+                cmd.Parameters.AddWithValue("$message", message);
+                cmd.Parameters.AddWithValue("$detail", detail ?? string.Empty);
+                cmd.ExecuteNonQuery();
+            }, "DB.LogError", ErrorCategory.Database);
         }
 
         public void LogAlarm(string severity, string source, string message, bool isActive)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 INSERT INTO Alarms (AlarmTime, Severity, Source, Message, IsActive)
 VALUES ($time, $severity, $source, $message, $active);";
-            cmd.Parameters.AddWithValue("$time", DateTime.UtcNow.ToString("o"));
-            cmd.Parameters.AddWithValue("$severity", severity);
-            cmd.Parameters.AddWithValue("$source", source);
-            cmd.Parameters.AddWithValue("$message", message);
-            cmd.Parameters.AddWithValue("$active", isActive ? 1 : 0);
-            cmd.ExecuteNonQuery();
+                cmd.Parameters.AddWithValue("$time", DateTime.UtcNow.ToString("o"));
+                cmd.Parameters.AddWithValue("$severity", severity);
+                cmd.Parameters.AddWithValue("$source", source);
+                cmd.Parameters.AddWithValue("$message", message);
+                cmd.Parameters.AddWithValue("$active", isActive ? 1 : 0);
+                cmd.ExecuteNonQuery();
+            }, "DB.LogAlarm", ErrorCategory.Database);
         }
 
         public List<PartHistoryEventRecord> GetPartHistory(string trackingNumber)
         {
-            var result = new List<PartHistoryEventRecord>();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                var result = new List<PartHistoryEventRecord>();
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 SELECT EventTime, EventType, Location, Details
 FROM PartEvents
 WHERE TrackingNumber = $tracking
 ORDER BY EventTime;";
-            cmd.Parameters.AddWithValue("$tracking", trackingNumber);
+                cmd.Parameters.AddWithValue("$tracking", trackingNumber);
 
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                result.Add(new PartHistoryEventRecord
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    EventTime = reader["EventTime"]?.ToString() ?? string.Empty,
-                    EventType = reader["EventType"]?.ToString() ?? string.Empty,
-                    Location = reader["Location"]?.ToString() ?? string.Empty,
-                    Details = reader["Details"]?.ToString() ?? string.Empty
-                });
-            }
+                    result.Add(new PartHistoryEventRecord
+                    {
+                        EventTime = reader["EventTime"]?.ToString() ?? string.Empty,
+                        EventType = reader["EventType"]?.ToString() ?? string.Empty,
+                        Location = reader["Location"]?.ToString() ?? string.Empty,
+                        Details = reader["Details"]?.ToString() ?? string.Empty
+                    });
+                }
 
-            return result;
+                return result;
+            }, "DB.GetPartHistory", ErrorCategory.Database, fallback: new List<PartHistoryEventRecord>())!;
         }
 
         public PartSummaryRecord? GetPartSummary(string trackingNumber)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 SELECT p.PartId,
        p.TrackingNumber,
        p.CreatedAt,
@@ -362,16 +406,16 @@ LEFT JOIN Results r ON r.PartId = p.PartId
 WHERE p.TrackingNumber = $tracking
 ORDER BY r.ResultId DESC
 LIMIT 1;";
-            cmd.Parameters.AddWithValue("$tracking", trackingNumber);
+                cmd.Parameters.AddWithValue("$tracking", trackingNumber);
 
-            using var reader = cmd.ExecuteReader();
-            if (!reader.Read())
-            {
-                return null;
-            }
+                using var reader = cmd.ExecuteReader();
+                if (!reader.Read())
+                {
+                    return null;
+                }
 
-            return new PartSummaryRecord
-            {
+                return new PartSummaryRecord
+                {
                 PartId = reader["PartId"]?.ToString() ?? string.Empty,
                 TrackingNumber = reader["TrackingNumber"]?.ToString() ?? string.Empty,
                 CreatedAt = reader["CreatedAt"]?.ToString() ?? string.Empty,
@@ -379,8 +423,9 @@ LIMIT 1;";
                 ExitedPrimeMoverAt = reader["ExitedPrimeMoverAt"]?.ToString() ?? string.Empty,
                 FinalStatus = reader["FinalStatus"]?.ToString() ?? "InProgress",
                 CompletedStations = Convert.ToInt32(reader["CompletedStations"]),
-                TotalStations = Convert.ToInt32(reader["TotalStations"])
-            };
+                    TotalStations = Convert.ToInt32(reader["TotalStations"])
+                };
+            }, "DB.GetPartSummary", ErrorCategory.Database, fallback: null);
         }
 
         public List<string> GetExportableTables()
@@ -390,57 +435,66 @@ LIMIT 1;";
 
         public List<string> GetAllTables()
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 SELECT name
 FROM sqlite_master
 WHERE type='table'
   AND name NOT LIKE 'sqlite_%'
 ORDER BY name;";
 
-            var result = new List<string>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                result.Add(reader["name"]?.ToString() ?? string.Empty);
-            }
+                var result = new List<string>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    result.Add(reader["name"]?.ToString() ?? string.Empty);
+                }
 
-            return result.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                return result.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            }, "DB.GetAllTables", ErrorCategory.Database, fallback: new List<string>())!;
         }
 
         public List<string> GetTableColumns(string tableName)
         {
             ValidateTableName(tableName);
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"PRAGMA table_info({tableName});";
-
-            var columns = new List<string>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            return _errorHandler.ExecuteWithRetry(() =>
             {
-                columns.Add(reader["name"]?.ToString() ?? string.Empty);
-            }
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            return columns.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"PRAGMA table_info({tableName});";
+
+                var columns = new List<string>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    columns.Add(reader["name"]?.ToString() ?? string.Empty);
+                }
+
+                return columns.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+            }, "DB.GetTableColumns", ErrorCategory.Database, fallback: new List<string>())!;
         }
 
         public int GetTableRowCount(string tableName)
         {
             ValidateTableName(tableName);
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"SELECT COUNT(*) FROM {tableName};";
-            return Convert.ToInt32(cmd.ExecuteScalar());
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM {tableName};";
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }, "DB.GetTableRowCount", ErrorCategory.Database, fallback: 0);
         }
 
         public List<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500)
@@ -449,28 +503,31 @@ ORDER BY name;";
 
             int safeMaxRows = Math.Clamp(maxRows, 1, 5000);
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"SELECT * FROM {tableName} LIMIT {safeMaxRows};";
-
-            var rows = new List<Dictionary<string, string>>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            return _errorHandler.ExecuteWithRetry(() =>
             {
-                var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                for (int i = 0; i < reader.FieldCount; i++)
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"SELECT * FROM {tableName} LIMIT {safeMaxRows};";
+
+                var rows = new List<Dictionary<string, string>>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    string key = reader.GetName(i);
-                    string value = reader.IsDBNull(i) ? string.Empty : reader.GetValue(i)?.ToString() ?? string.Empty;
-                    row[key] = value;
+                    var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        string key = reader.GetName(i);
+                        string value = reader.IsDBNull(i) ? string.Empty : reader.GetValue(i)?.ToString() ?? string.Empty;
+                        row[key] = value;
+                    }
+
+                    rows.Add(row);
                 }
 
-                rows.Add(row);
-            }
-
-            return rows;
+                return rows;
+            }, "DB.GetTableRows", ErrorCategory.Database, fallback: new List<Dictionary<string, string>>())!;
         }
 
         public string ExportTableToCsv(string tableName, string? exportDirectory = null)
