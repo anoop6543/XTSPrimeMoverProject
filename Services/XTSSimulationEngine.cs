@@ -10,7 +10,7 @@ namespace XTSPrimeMoverProject.Services
     public class XTSSimulationEngine : IDisposable
     {
         private readonly System.Threading.Timer _timer;
-        private readonly Dispatcher _dispatcher;
+        private readonly Dispatcher? _dispatcher;
         private readonly Random _random;
         private readonly SimulationDataLogger _dataLogger;
         private readonly object _simulationLock = new();
@@ -75,6 +75,7 @@ namespace XTSPrimeMoverProject.Services
         {
             _random = new Random();
             _dataLogger = new SimulationDataLogger();
+            _dispatcher = Dispatcher.FromThread(Thread.CurrentThread) ?? Dispatcher.CurrentDispatcher;
 
             _partHistoryLogIndex = new Dictionary<Guid, int>();
             _moverAxes = new Dictionary<int, FbXtsMoverAxis>();
@@ -96,7 +97,6 @@ namespace XTSPrimeMoverProject.Services
 
             InitializeSystem();
 
-            _dispatcher = Dispatcher.CurrentDispatcher;
             _timer = new System.Threading.Timer(OnTimerTick, null, Timeout.Infinite, Timeout.Infinite);
         }
 
@@ -399,7 +399,14 @@ namespace XTSPrimeMoverProject.Services
                     Update(deltaTime);
                 }
 
-                _dispatcher.Invoke(() => StateChanged?.Invoke(this, EventArgs.Empty));
+                if (_dispatcher != null && !_dispatcher.HasShutdownStarted)
+                {
+                    _dispatcher.Invoke(() => StateChanged?.Invoke(this, EventArgs.Empty));
+                }
+                else
+                {
+                    StateChanged?.Invoke(this, EventArgs.Empty);
+                }
             }
             catch (Exception ex)
             {
@@ -1088,6 +1095,12 @@ namespace XTSPrimeMoverProject.Services
         private void Log(string message)
         {
             var msg = $"{DateTime.Now:HH:mm:ss.fff} | {message}";
+            if (_dispatcher == null || _dispatcher.HasShutdownStarted)
+            {
+                LogGenerated?.Invoke(this, msg);
+                return;
+            }
+
             if (_dispatcher.CheckAccess())
             {
                 LogGenerated?.Invoke(this, msg);
