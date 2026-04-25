@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using XTSPrimeMoverProject.Models;
 
 namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
@@ -9,6 +10,8 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
     /// Mock remote TwinCAT machine gateway.
     /// Wraps any IMachineGatewayService and injects a small command latency
     /// to emulate a remote control boundary.
+    /// Commands are dispatched to the thread pool so the UI thread is never blocked
+    /// by simulated network latency.
     /// </summary>
     public sealed class RemoteTwinCatMachineGatewayMock : IMachineGatewayService
     {
@@ -42,26 +45,22 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
         public void Start()
         {
-            SimulateNetworkCommandLatency();
-            _inner.Start();
+            DispatchWithLatency(() => _inner.Start());
         }
 
         public void Stop()
         {
-            SimulateNetworkCommandLatency();
-            _inner.Stop();
+            DispatchWithLatency(() => _inner.Stop());
         }
 
         public void Reset()
         {
-            SimulateNetworkCommandLatency();
-            _inner.Reset();
+            DispatchWithLatency(() => _inner.Reset());
         }
 
         public void SetSimulationSpeed(double speed)
         {
-            SimulateNetworkCommandLatency();
-            _inner.SetSimulationSpeed(speed);
+            DispatchWithLatency(() => _inner.SetSimulationSpeed(speed));
         }
 
         public IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus() => _inner.GetWatchdogStatus();
@@ -70,7 +69,7 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
         public bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message)
         {
-            SimulateNetworkCommandLatency();
+            SimulateNetworkLatencySync();
             return _inner.TryApplyOrchestration(stepDefinitions, out message);
         }
 
@@ -80,7 +79,22 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
         public IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses()
             => _inner.GetOrchestrationSafetyGateStatuses();
 
-        private void SimulateNetworkCommandLatency()
+        private void DispatchWithLatency(Action command)
+        {
+            if (_commandLatencyMs <= 0)
+            {
+                command();
+                return;
+            }
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(_commandLatencyMs).ConfigureAwait(false);
+                command();
+            });
+        }
+
+        private void SimulateNetworkLatencySync()
         {
             if (_commandLatencyMs > 0)
             {

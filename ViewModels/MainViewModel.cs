@@ -5,8 +5,10 @@ using System.ComponentModel;
 using System.Data;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Threading;
 using XTSPrimeMoverProject.Models;
 using XTSPrimeMoverProject.Services;
 
@@ -16,6 +18,7 @@ namespace XTSPrimeMoverProject.ViewModels
     {
         private readonly IMachineGatewayService _machine;
         private readonly IDataGatewayService _data;
+        private readonly Dispatcher _dispatcher;
         private string _statusText;
         private bool _isRunning;
         private string _partHistoryTrackingNumber;
@@ -195,6 +198,7 @@ namespace XTSPrimeMoverProject.ViewModels
         {
             _machine = machine ?? throw new ArgumentNullException(nameof(machine));
             _data = data ?? throw new ArgumentNullException(nameof(data));
+            _dispatcher = Dispatcher.CurrentDispatcher;
             _gatewayModeStatus = string.IsNullOrWhiteSpace(gatewayModeStatus)
                 ? "Machine Gateway: Local"
                 : gatewayModeStatus;
@@ -541,7 +545,7 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        private void ExportCsv()
+        private async void ExportCsv()
         {
             if (string.IsNullOrWhiteSpace(SelectedExportTable))
             {
@@ -549,10 +553,14 @@ namespace XTSPrimeMoverProject.ViewModels
                 return;
             }
 
+            string tableName = SelectedExportTable;
+            string exportDir = _data.GetDefaultExportDirectory();
+            CsvExportStatus = $"Exporting {tableName}...";
+
             try
             {
-                string filePath = _data.ExportTableToCsv(SelectedExportTable, _data.GetDefaultExportDirectory());
-                CsvExportStatus = $"Exported {SelectedExportTable} -> {filePath}";
+                string filePath = await Task.Run(() => _data.ExportTableToCsv(tableName, exportDir));
+                CsvExportStatus = $"Exported {tableName} -> {filePath}";
             }
             catch (Exception ex)
             {
@@ -562,6 +570,12 @@ namespace XTSPrimeMoverProject.ViewModels
 
         private void OnEngineLogGenerated(object? sender, string message)
         {
+            if (!_dispatcher.CheckAccess())
+            {
+                _dispatcher.BeginInvoke(() => OnEngineLogGenerated(sender, message));
+                return;
+            }
+
             ExecutionLogs.Add(message);
             while (ExecutionLogs.Count > 400)
             {

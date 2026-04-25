@@ -121,7 +121,47 @@ Implemented operator debug signals:
 
 ---
 
-## 6. Persistence Contract
+## 6. Threading Architecture
+
+The application separates concerns across dedicated threads to keep the UI responsive and prevent I/O from blocking simulation computation.
+
+### Thread Topology
+
+| Thread | Responsibility | Mechanism |
+|---|---|---|
+| **UI thread** | WPF rendering, data binding, command handlers, `ObservableCollection` updates | WPF Dispatcher |
+| **Simulation thread** | Engine tick computation (movers, robots, machines, watchdogs) | `System.Threading.Timer` callback via thread pool |
+| **DB-WriteQueue thread** | All database INSERT/UPDATE operations | Dedicated `Thread` consuming a `BlockingCollection<Action>` |
+| **Thread pool (ad-hoc)** | CSV export, network latency simulation in remote mock | `Task.Run` |
+
+### Synchronization
+
+- **`_simulationLock`** (in `XTSSimulationEngine`) — held during the entire `Update(deltaTime)` call, and also during `Start()` / `Stop()` / `Reset()` to prevent concurrent mutation.
+- **`Interlocked._tickActive`** — re-entrancy guard preventing overlapping timer callbacks.
+- **`Dispatcher.Invoke`** — after each simulation tick, the engine synchronously marshals `StateChanged` to the UI thread, ensuring the UI reads consistent state while the engine is paused between ticks.
+- **`Dispatcher.BeginInvoke`** — used for `LogGenerated` events and `OnEngineLogGenerated` in the ViewModel to avoid blocking the simulation thread on log delivery.
+- **Value snapshots** — all `SimulationDataLogger` write methods capture scalar values from model objects *before* queuing, preventing the background writer from reading stale or torn state.
+
+### Database Write Queue
+
+`DatabaseWriteQueue` uses a producer-consumer pattern:
+- Bounded capacity of 2048 pending writes to provide back-pressure
+- Single dedicated background thread (`ThreadPriority.BelowNormal`)
+- Graceful shutdown via `CompleteAdding()` + `Join(5s)` timeout
+- Write failures are logged but do not crash the consumer thread
+
+### Remote Gateway Latency
+
+`RemoteTwinCatMachineGatewayMock` simulates network latency using `Task.Delay` instead of `Thread.Sleep`, dispatching commands to the thread pool so the UI thread is never blocked. Query methods that return values remain synchronous since they are fast in-memory reads.
+
+### Shutdown
+
+- `MainWindow.Closed` event calls `XTSSimulationEngine.Dispose()` which stops the timer and drains the DB write queue.
+- `App.OnStartup` registers global exception handlers for `DispatcherUnhandledException`, `AppDomain.UnhandledException`, and `TaskScheduler.UnobservedTaskException` with crash log persistence.
+
+---
+
+## 7. Persistence Contract
 
 Current tables:
 - `Recipes`
@@ -137,7 +177,7 @@ Schema changes should be treated as explicit migrations.
 
 ---
 
-## 7. Continuation Rules (multi-machine/dev handoff)
+## 8. Continuation Rules (multi-machine/dev handoff)
 
 1. Read `README.md`, this file, then `AGENTS.md`.
 2. Keep process logic in `Services/` and `Models/`.
@@ -148,7 +188,7 @@ Schema changes should be treated as explicit migrations.
 
 ---
 
-## 8. Split-Runtime Modernization Direction
+## 9. Split-Runtime Modernization Direction
 
 The modernization target is:
 - **Machine logic on Beckhoff/TwinCAT side**
