@@ -11,6 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using XTSPrimeMoverProject.Services.RemoteTwinCat;
 using XTSPrimeMoverProject.Services.RemoteTwinCatMock;
 using XTSPrimeMoverProject.ViewModels;
 
@@ -33,16 +34,34 @@ namespace XTSPrimeMoverProject
                 _engine = engine;
                 var localGateway = new Services.LocalSimulationServiceGateway(engine);
 
+                string configuredMode = ReadAppStringSetting("MachineGatewayMode", string.Empty);
                 bool useRemoteMock = ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
                 int latencyMs = ReadAppIntSetting("RemoteTwinCatMachineGatewayMockLatencyMs", defaultValue: 40);
+                string remoteHttpBaseAddress = ReadAppStringSetting("RemoteTwinCatHttpGatewayBaseAddress", "https://localhost:7043/");
+                int remoteHttpTimeoutMs = ReadAppIntSetting("RemoteTwinCatHttpGatewayTimeoutMs", defaultValue: 4000);
 
-                Services.IMachineGatewayService machineGateway = useRemoteMock
-                    ? new RemoteTwinCatMachineGatewayMock(localGateway, commandLatencyMs: latencyMs)
-                    : localGateway;
+                string normalizedMode = string.IsNullOrWhiteSpace(configuredMode)
+                    ? (useRemoteMock ? "RemoteMock" : "Local")
+                    : configuredMode.Trim();
 
-                string gatewayModeStatus = useRemoteMock
-                    ? $"Machine Gateway: Remote TwinCAT Mock ({latencyMs} ms)"
-                    : "Machine Gateway: Local In-Process";
+                Services.IMachineGatewayService machineGateway;
+                string gatewayModeStatus;
+
+                if (string.Equals(normalizedMode, "RemoteHttp", StringComparison.OrdinalIgnoreCase))
+                {
+                    machineGateway = new RemoteTwinCatHttpGateway(remoteHttpBaseAddress, remoteHttpTimeoutMs);
+                    gatewayModeStatus = $"Machine Gateway: Remote TwinCAT HTTP ({remoteHttpBaseAddress})";
+                }
+                else if (string.Equals(normalizedMode, "RemoteMock", StringComparison.OrdinalIgnoreCase))
+                {
+                    machineGateway = new RemoteTwinCatMachineGatewayMock(localGateway, commandLatencyMs: latencyMs);
+                    gatewayModeStatus = $"Machine Gateway: Remote TwinCAT Mock ({latencyMs} ms)";
+                }
+                else
+                {
+                    machineGateway = localGateway;
+                    gatewayModeStatus = "Machine Gateway: Local In-Process";
+                }
 
                 var dataGateway = (Services.IDataGatewayService)localGateway;
                 var viewModel = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
@@ -99,6 +118,16 @@ namespace XTSPrimeMoverProject
         private static int ReadAppIntSetting(string key, int defaultValue)
         {
             if (Application.Current?.Resources[key] is int value)
+            {
+                return value;
+            }
+
+            return defaultValue;
+        }
+
+        private static string ReadAppStringSetting(string key, string defaultValue)
+        {
+            if (Application.Current?.Resources[key] is string value && !string.IsNullOrWhiteSpace(value))
             {
                 return value;
             }

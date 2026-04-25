@@ -5,10 +5,17 @@
              xmlns:local="clr-namespace:XTSPrimeMoverProject"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- Runtime gateway toggle: true = RemoteTwinCatMachineGatewayMock, false = LocalSimulationServiceGateway -->
+        <!-- Machine gateway mode: Local | RemoteMock | RemoteHttp -->
+        <sys:String x:Key="MachineGatewayMode">RemoteHttp</sys:String>
+
+        <!-- Backward-compatible fallback toggle when MachineGatewayMode is not provided -->
         <sys:Boolean x:Key="UseRemoteTwinCatMachineGatewayMock">True</sys:Boolean>
 
-        <!-- Applied only when remote mock is enabled -->
+        <!-- Applied when RemoteMock mode is selected -->
         <sys:Int32 x:Key="RemoteTwinCatMachineGatewayMockLatencyMs">40</sys:Int32>
+
+        <!-- Applied when RemoteHttp mode is selected -->
+        <sys:String x:Key="RemoteTwinCatHttpGatewayBaseAddress">https://localhost:7043/</sys:String>
+        <sys:Int32 x:Key="RemoteTwinCatHttpGatewayTimeoutMs">4000</sys:Int32>
     </Application.Resources>
 </Application>

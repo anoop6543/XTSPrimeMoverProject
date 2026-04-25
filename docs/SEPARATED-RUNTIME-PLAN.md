@@ -273,11 +273,25 @@ Use this section as the working checklist for the remaining split-runtime work. 
   - Suggested class: a real `IMachineGatewayService` implementation for the selected transport.
 
 #### Tasks
-- [ ] Choose and document the first production protocol candidate.
-- [ ] Add a real remote machine gateway implementation behind `IMachineGatewayService`.
-- [ ] Extend app configuration/resources with endpoint, timeout, and protocol settings.
-- [ ] Update `MainWindow()` composition logic to select local, mock remote, or real remote gateway.
-- [ ] Keep `RemoteTwinCatMachineGatewayMock` available for fallback and latency testing.
+- [x] Choose and document the first production protocol candidate.
+- [x] Add a real remote machine gateway implementation behind `IMachineGatewayService`.
+- [x] Extend app configuration/resources with endpoint, timeout, and protocol settings.
+- [x] Update `MainWindow()` composition logic to select local, mock remote, or real remote gateway.
+- [x] Keep `RemoteTwinCatMachineGatewayMock` available for fallback and latency testing.
+
+#### Phase C1 status
+- Status: Completed
+- Production protocol candidate: HTTP/JSON
+- Implemented in:
+  - `Services/RemoteTwinCat/RemoteTwinCatHttpGateway.cs`
+  - `App.xaml`
+  - `MainWindow.xaml.cs`
+- Notes:
+  - Added the first real remote machine gateway implementation as `RemoteTwinCatHttpGateway`, using `HttpClient` and JSON payloads against configurable remote endpoints.
+  - Added application resources for `MachineGatewayMode`, `RemoteTwinCatHttpGatewayBaseAddress`, and `RemoteTwinCatHttpGatewayTimeoutMs` while preserving the legacy mock toggle.
+  - `MainWindow` composition can now select `Local`, `RemoteMock`, or `RemoteHttp` machine gateway modes.
+  - `RemoteTwinCatMachineGatewayMock` remains available as a fallback and latency-testing path.
+  - The HTTP gateway surfaces explicit reconnecting/offline/degraded behavior when the configured remote endpoint is unavailable or returns invalid responses.
 
 ---
 
