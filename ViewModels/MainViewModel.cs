@@ -34,6 +34,7 @@ namespace XTSPrimeMoverProject.ViewModels
         private string _orchestrationStatus;
         private string _orchestrationValidationStatus;
         private string _gatewayModeStatus;
+        private GatewaySessionStatus _gatewaySessionStatus;
 
         public ObservableCollection<MoverViewModel> Movers { get; }
         public ObservableCollection<MachineViewModel> Machines { get; }
@@ -172,6 +173,17 @@ namespace XTSPrimeMoverProject.ViewModels
         public int PrimeMoverExitedCount => _machine.PrimeMoverExitedCount;
         public string DatabasePath => _data.DatabasePath;
         public string GatewayModeStatus => _gatewayModeStatus;
+        public string GatewaySessionSummary => _gatewaySessionStatus.Summary;
+        public string GatewaySessionStateText => _gatewaySessionStatus.State.ToString().ToUpperInvariant();
+        public string GatewaySessionDetail => _gatewaySessionStatus.Detail;
+        public string GatewaySessionStatusColor => _gatewaySessionStatus.State switch
+        {
+            GatewayConnectionState.Connected => "#4CAF50",
+            GatewayConnectionState.Degraded => "#D7BA7D",
+            GatewayConnectionState.Reconnecting => "#9CDCFE",
+            GatewayConnectionState.Offline => "#F44747",
+            _ => "#AAAAAA"
+        };
         public bool EntryZoneBlink => _machine.EntryZoneBlink;
         public bool ExitZoneBlink => _machine.ExitZoneBlink;
 
@@ -203,8 +215,10 @@ namespace XTSPrimeMoverProject.ViewModels
             _gatewayModeStatus = string.IsNullOrWhiteSpace(gatewayModeStatus)
                 ? "Machine Gateway: Local"
                 : gatewayModeStatus;
+            _gatewaySessionStatus = _machine.SessionStatus;
             _machine.StateChanged += OnEngineStateChanged;
             _machine.LogGenerated += OnEngineLogGenerated;
+            _machine.SessionStatusChanged += OnMachineSessionStatusChanged;
 
             _statusText = "SYSTEM STOPPED";
             _partHistoryTrackingNumber = string.Empty;
@@ -716,6 +730,21 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
+        private void OnMachineSessionStatusChanged(object? sender, GatewaySessionStatus status)
+        {
+            if (!_dispatcher.CheckAccess())
+            {
+                _dispatcher.BeginInvoke(() => OnMachineSessionStatusChanged(sender, status));
+                return;
+            }
+
+            _gatewaySessionStatus = status;
+            OnPropertyChanged(nameof(GatewaySessionSummary));
+            OnPropertyChanged(nameof(GatewaySessionStateText));
+            OnPropertyChanged(nameof(GatewaySessionDetail));
+            OnPropertyChanged(nameof(GatewaySessionStatusColor));
+        }
+
         private async Task RefreshWatchdogStatusesAsync()
         {
             var latest = await _machine.GetWatchdogStatusAsync().ConfigureAwait(true);
@@ -769,6 +798,10 @@ namespace XTSPrimeMoverProject.ViewModels
                 OnPropertyChanged(nameof(PrimeMoverEnteredCount));
                 OnPropertyChanged(nameof(PrimeMoverExitedCount));
                 OnPropertyChanged(nameof(DatabasePath));
+                OnPropertyChanged(nameof(GatewaySessionSummary));
+                OnPropertyChanged(nameof(GatewaySessionStateText));
+                OnPropertyChanged(nameof(GatewaySessionDetail));
+                OnPropertyChanged(nameof(GatewaySessionStatusColor));
                 OnPropertyChanged(nameof(EntryZoneBlink));
                 OnPropertyChanged(nameof(ExitZoneBlink));
             }

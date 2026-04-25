@@ -16,10 +16,15 @@ namespace XTSPrimeMoverProject.Services
     {
         private readonly XTSSimulationEngine _engine;
         private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
+        private GatewaySessionStatus _sessionStatus;
 
         public LocalSimulationServiceGateway(XTSSimulationEngine engine)
         {
             _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+            _sessionStatus = CreateSessionStatus(
+                GatewayConnectionState.Connected,
+                "Connected",
+                "Local in-process machine gateway active.");
             _engine.StateChanged += OnEngineStateChanged;
             _engine.LogGenerated += OnEngineLogGenerated;
         }
@@ -28,6 +33,7 @@ namespace XTSPrimeMoverProject.Services
 
         public event EventHandler? StateChanged;
         public event EventHandler<string>? LogGenerated;
+        public event EventHandler<GatewaySessionStatus>? SessionStatusChanged;
 
         public IReadOnlyList<Mover> Movers => _engine.Movers;
         public IReadOnlyList<Machine> Machines => _engine.Machines;
@@ -41,6 +47,7 @@ namespace XTSPrimeMoverProject.Services
         public bool IsRunning => _engine.IsRunning;
         public bool EntryZoneBlink => _engine.EntryZoneBlink;
         public bool ExitZoneBlink => _engine.ExitZoneBlink;
+        public GatewaySessionStatus SessionStatus => _sessionStatus;
 
         public void Start()
         {
@@ -238,10 +245,17 @@ namespace XTSPrimeMoverProject.Services
         {
             try
             {
+                PublishSessionStatus(
+                    GatewayConnectionState.Connected,
+                    "Connected",
+                    _engine.IsRunning
+                        ? "Local machine gateway connected and simulation running."
+                        : "Local machine gateway connected and simulation stopped.");
                 StateChanged?.Invoke(this, EventArgs.Empty);
             }
             catch (Exception ex)
             {
+                PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Local state forwarding recovered after error: {ex.Message}");
                 _errorHandler.ReportException(ErrorCategory.Gateway, "LocalGateway.OnEngineStateChanged", ex, wasRecovered: true);
             }
         }
@@ -254,8 +268,26 @@ namespace XTSPrimeMoverProject.Services
             }
             catch (Exception ex)
             {
+                PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Local log forwarding recovered after error: {ex.Message}");
                 _errorHandler.ReportException(ErrorCategory.Gateway, "LocalGateway.OnEngineLogGenerated", ex, wasRecovered: true);
             }
+        }
+
+        private GatewaySessionStatus CreateSessionStatus(GatewayConnectionState state, string summary, string detail)
+        {
+            return new GatewaySessionStatus(state, summary, detail, DateTime.UtcNow, IsRemote: false);
+        }
+
+        private void PublishSessionStatus(GatewayConnectionState state, string summary, string detail)
+        {
+            var next = CreateSessionStatus(state, summary, detail);
+            if (_sessionStatus == next)
+            {
+                return;
+            }
+
+            _sessionStatus = next;
+            SessionStatusChanged?.Invoke(this, next);
         }
     }
 }

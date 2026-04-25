@@ -229,11 +229,26 @@ Use this section as the working checklist for the remaining split-runtime work. 
   - `MainWindow()`
 
 #### Tasks
-- [ ] Introduce `Connected`, `Degraded`, `Reconnecting`, and `Offline` gateway/session states.
-- [ ] Expose live connection/session state through the gateway abstraction.
-- [ ] Replace static status-only usage in `MainViewModel` with live state properties.
-- [ ] Add HMI binding updates in `MainWindow.xaml` to show mode and health separately.
-- [ ] Keep local gateway reporting a stable healthy state while remote implementations can transition.
+- [x] Introduce `Connected`, `Degraded`, `Reconnecting`, and `Offline` gateway/session states.
+- [x] Expose live connection/session state through the gateway abstraction.
+- [x] Replace static status-only usage in `MainViewModel` with live state properties.
+- [x] Add HMI binding updates in `MainWindow.xaml` to show mode and health separately.
+- [x] Keep local gateway reporting a stable healthy state while remote implementations can transition.
+
+#### Phase B2 status
+- Status: Completed
+- Implemented in:
+  - `Services/HmiServiceContracts.cs`
+  - `Services/LocalSimulationServiceGateway.cs`
+  - `Services/RemoteTwinCatMock/RemoteTwinCatMachineGatewayMock.cs`
+  - `ViewModels/MainViewModel.cs`
+  - `MainWindow.xaml`
+- Notes:
+  - Added `GatewayConnectionState` and `GatewaySessionStatus` to the shared machine gateway contract.
+  - `LocalSimulationServiceGateway` now reports a stable local connected state and degrades only when event forwarding encounters recoverable issues.
+  - `RemoteTwinCatMachineGatewayMock` now publishes reconnecting, connected, degraded, and offline transitions based on delayed command dispatch and remote-style read/apply outcomes.
+  - `MainViewModel` now exposes gateway health summary, state text, detail text, and color for the HMI.
+  - The Line HMI now shows gateway mode separately from live session health.
 
 ---
 

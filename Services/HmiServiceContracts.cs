@@ -8,10 +8,26 @@ namespace XTSPrimeMoverProject.Services
 {
     public sealed record OrchestrationApplyResult(bool Success, string Message);
 
+    public enum GatewayConnectionState
+    {
+        Connected,
+        Degraded,
+        Reconnecting,
+        Offline
+    }
+
+    public sealed record GatewaySessionStatus(
+        GatewayConnectionState State,
+        string Summary,
+        string Detail,
+        DateTime LastUpdatedUtc,
+        bool IsRemote);
+
     public interface IMachineGatewayService
     {
         event EventHandler? StateChanged;
         event EventHandler<string>? LogGenerated;
+        event EventHandler<GatewaySessionStatus>? SessionStatusChanged;
 
         IReadOnlyList<Mover> Movers { get; }
         IReadOnlyList<Machine> Machines { get; }
@@ -25,6 +41,7 @@ namespace XTSPrimeMoverProject.Services
         bool IsRunning { get; }
         bool EntryZoneBlink { get; }
         bool ExitZoneBlink { get; }
+        GatewaySessionStatus SessionStatus { get; }
 
         void Start();
         void Stop();

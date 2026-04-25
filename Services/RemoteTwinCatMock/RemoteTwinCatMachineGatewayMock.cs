@@ -19,18 +19,27 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 		private readonly IMachineGatewayService _inner;
 		private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
 		private readonly int _commandLatencyMs;
+		private GatewaySessionStatus _sessionStatus;
 
 		public RemoteTwinCatMachineGatewayMock(IMachineGatewayService inner, int commandLatencyMs = 40)
 		{
 			_inner = inner ?? throw new ArgumentNullException(nameof(inner));
 			_commandLatencyMs = Math.Max(0, commandLatencyMs);
+			_sessionStatus = CreateSessionStatus(
+				GatewayConnectionState.Connected,
+				"Connected",
+				_commandLatencyMs > 0
+					? $"Remote TwinCAT mock connected ({_commandLatencyMs} ms simulated latency)."
+					: "Remote TwinCAT mock connected.");
 
 			_inner.StateChanged += OnInnerStateChanged;
 			_inner.LogGenerated += OnInnerLogGenerated;
+			_inner.SessionStatusChanged += OnInnerSessionStatusChanged;
 		}
 
 		public event EventHandler? StateChanged;
 		public event EventHandler<string>? LogGenerated;
+		public event EventHandler<GatewaySessionStatus>? SessionStatusChanged;
 
 		public IReadOnlyList<Mover> Movers => _inner.Movers;
 		public IReadOnlyList<Machine> Machines => _inner.Machines;
@@ -44,24 +53,29 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 		public bool IsRunning => _inner.IsRunning;
 		public bool EntryZoneBlink => _inner.EntryZoneBlink;
 		public bool ExitZoneBlink => _inner.ExitZoneBlink;
+		public GatewaySessionStatus SessionStatus => _sessionStatus;
 
 		public void Start()
 		{
+			PublishSessionStatus(GatewayConnectionState.Reconnecting, "Reconnecting", "Dispatching remote start command through mock boundary.");
 			DispatchWithLatency(() => _inner.Start());
 		}
 
 		public void Stop()
 		{
+			PublishSessionStatus(GatewayConnectionState.Reconnecting, "Reconnecting", "Dispatching remote stop command through mock boundary.");
 			DispatchWithLatency(() => _inner.Stop());
 		}
 
 		public void Reset()
 		{
+			PublishSessionStatus(GatewayConnectionState.Reconnecting, "Reconnecting", "Dispatching remote reset command through mock boundary.");
 			DispatchWithLatency(() => _inner.Reset());
 		}
 
 		public void SetSimulationSpeed(double speed)
 		{
+			PublishSessionStatus(GatewayConnectionState.Reconnecting, "Reconnecting", $"Dispatching remote speed command ({speed:F1}x) through mock boundary.");
 			DispatchWithLatency(() => _inner.SetSimulationSpeed(speed));
 		}
 
@@ -72,10 +86,13 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
 			try
 			{
-				return await _inner.GetWatchdogStatusAsync(cancellationToken).ConfigureAwait(false);
+				var result = await _inner.GetWatchdogStatusAsync(cancellationToken).ConfigureAwait(false);
+				PublishSessionStatus(GatewayConnectionState.Connected, "Connected", BuildConnectedDetail());
+				return result;
 			}
 			catch (Exception ex) when (ex is not OperationCanceledException)
 			{
+				PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Remote watchdog query failed: {ex.Message}");
 				_errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.GetWatchdogStatusAsync", ex);
 				return Array.Empty<WatchdogStatusEntry>();
 			}
@@ -88,10 +105,13 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
 			try
 			{
-				return await _inner.GetOrchestrationStepsAsync(cancellationToken).ConfigureAwait(false);
+				var result = await _inner.GetOrchestrationStepsAsync(cancellationToken).ConfigureAwait(false);
+				PublishSessionStatus(GatewayConnectionState.Connected, "Connected", BuildConnectedDetail());
+				return result;
 			}
 			catch (Exception ex) when (ex is not OperationCanceledException)
 			{
+				PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Remote orchestration read failed: {ex.Message}");
 				_errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.GetOrchestrationStepsAsync", ex);
 				return Array.Empty<ProductionSequenceStep>();
 			}
@@ -103,7 +123,9 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 			{
 				await SimulateNetworkLatencyAsync(cancellationToken).ConfigureAwait(false);
 				cancellationToken.ThrowIfCancellationRequested();
-				return await _inner.ApplyOrchestrationAsync(stepDefinitions, cancellationToken).ConfigureAwait(false);
+				var result = await _inner.ApplyOrchestrationAsync(stepDefinitions, cancellationToken).ConfigureAwait(false);
+				PublishSessionStatus(result.Success ? GatewayConnectionState.Connected : GatewayConnectionState.Degraded, result.Success ? "Connected" : "Degraded", result.Success ? BuildConnectedDetail() : result.Message);
+				return result;
 			}
 			catch (OperationCanceledException)
 			{
@@ -111,6 +133,7 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 			}
 			catch (Exception ex)
 			{
+				PublishSessionStatus(GatewayConnectionState.Offline, "Offline", $"Remote orchestration apply failed: {ex.Message}");
 				_errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.ApplyOrchestrationAsync", ex);
 				return new OrchestrationApplyResult(false, $"Remote gateway error: {ex.Message}");
 			}
@@ -123,10 +146,13 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
 			try
 			{
-				return await _inner.PreviewOrchestrationValidationAsync(stepDefinitions, cancellationToken).ConfigureAwait(false);
+				var result = await _inner.PreviewOrchestrationValidationAsync(stepDefinitions, cancellationToken).ConfigureAwait(false);
+				PublishSessionStatus(result.Count == 0 ? GatewayConnectionState.Connected : GatewayConnectionState.Degraded, result.Count == 0 ? "Connected" : "Degraded", result.Count == 0 ? BuildConnectedDetail() : "Remote validation returned rule violations.");
+				return result;
 			}
 			catch (Exception ex) when (ex is not OperationCanceledException)
 			{
+				PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Remote validation query failed: {ex.Message}");
 				_errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.PreviewOrchestrationValidationAsync", ex);
 				return new List<string> { "Validation unavailable due to remote gateway error." };
 			}
@@ -139,10 +165,13 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
 			try
 			{
-				return await _inner.GetOrchestrationSafetyGateStatusesAsync(cancellationToken).ConfigureAwait(false);
+				var result = await _inner.GetOrchestrationSafetyGateStatusesAsync(cancellationToken).ConfigureAwait(false);
+				PublishSessionStatus(GatewayConnectionState.Connected, "Connected", BuildConnectedDetail());
+				return result;
 			}
 			catch (Exception ex) when (ex is not OperationCanceledException)
 			{
+				PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Remote safety gate query failed: {ex.Message}");
 				_errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.GetOrchestrationSafetyGateStatusesAsync", ex);
 				return Array.Empty<SafetyGateStatus>();
 			}
@@ -174,10 +203,12 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 		{
 			try
 			{
+				PublishSessionStatus(GatewayConnectionState.Connected, "Connected", BuildConnectedDetail());
 				StateChanged?.Invoke(this, EventArgs.Empty);
 			}
 			catch (Exception ex)
 			{
+				PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Remote state forwarding recovered after error: {ex.Message}");
 				_errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.OnInnerStateChanged", ex, wasRecovered: true);
 			}
 		}
@@ -190,8 +221,38 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 			}
 			catch (Exception ex)
 			{
+				PublishSessionStatus(GatewayConnectionState.Degraded, "Degraded", $"Remote log forwarding recovered after error: {ex.Message}");
 				_errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.OnInnerLogGenerated", ex, wasRecovered: true);
 			}
+		}
+
+		private void OnInnerSessionStatusChanged(object? sender, GatewaySessionStatus status)
+		{
+			PublishSessionStatus(status.State, status.Summary, status.Detail);
+		}
+
+		private GatewaySessionStatus CreateSessionStatus(GatewayConnectionState state, string summary, string detail)
+		{
+			return new GatewaySessionStatus(state, summary, detail, DateTime.UtcNow, IsRemote: true);
+		}
+
+		private void PublishSessionStatus(GatewayConnectionState state, string summary, string detail)
+		{
+			var next = CreateSessionStatus(state, summary, detail);
+			if (_sessionStatus == next)
+			{
+				return;
+			}
+
+			_sessionStatus = next;
+			SessionStatusChanged?.Invoke(this, next);
+		}
+
+		private string BuildConnectedDetail()
+		{
+			return _commandLatencyMs > 0
+				? $"Remote TwinCAT mock connected ({_commandLatencyMs} ms simulated latency)."
+				: "Remote TwinCAT mock connected.";
 		}
 	}
 }
