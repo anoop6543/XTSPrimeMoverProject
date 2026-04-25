@@ -45,6 +45,55 @@ WPF + .NET 10 simulation of a Beckhoff-style XTS transport line with service-dri
   - animated dashed transfer lines with glow
   - direction arrowheads at active destination end
 
+### Visualization Screens
+> Indexed in navigation order for first-time visitors.
+
+#### 1) Main line visualization overview
+![Main Visualization Screen](docs/screenshots/01-main-visualization.png)
+
+#### 2) Production statistics section
+![Production Statistics Section](docs/screenshots/ProductionStatistics_Section.png)
+
+#### 3) Mover live explainer section
+![Mover Live Explainer Section](docs/screenshots/MoverLiveExplainer_Screen.png)
+
+#### 4) Machine runtime tracking section
+![Machine Runtime Tracking Section](docs/screenshots/Machine_RunTime__Tracking_Section.png)
+
+#### 5) Robot transfers (mover to machine)
+![Robot Transfers Mover to Machine Section](docs/screenshots/RobotTransfers-MoverToMachineSection.png)
+
+#### 6) Laser welder station view
+![Laser Welder Station](docs/screenshots/LaserWelderStation.png)
+
+#### 7) Assembly station view
+![Assembly Station](docs/screenshots/AssemblyStation.png)
+
+#### 8) Inspection station view
+![Inspection Station](docs/screenshots/Inspection_Station.png)
+
+#### 9) Testing station view
+![Testing Station](docs/screenshots/Testing_Station.png)
+
+#### 10) Orchestration editor screen
+![Orchestration Editor Screen](docs/screenshots/OrchestationEditor_Screen.png)
+
+#### 11) Part history inspection screen
+![Part History Inspection](docs/screenshots/PartHistoryInspection.png)
+
+#### 12) Database tables view screen
+![Database Tables View Screen](docs/screenshots/DB_Tables_VIew_Screen.png)
+
+#### 13) Runtime execution logger
+![Execution Logger](docs/screenshots/03-execution-logger.png)
+
+### HMI Screen Recording
+- [Watch the HMI runtime recording (YouTube - Unlisted)](https://www.youtube.com/watch?v=cIq1iMvu8MY)
+
+[![Watch HMI runtime recording](https://img.youtube.com/vi/cIq1iMvu8MY/hqdefault.jpg)](https://www.youtube.com/watch?v=cIq1iMvu8MY)
+
+- Citation: YouTube (unlisted) project runtime demo — `https://www.youtube.com/watch?v=cIq1iMvu8MY`
+
 ### Line HMI (right panel)
 - Production counters and yield
 - Gateway mode indicator (Local vs Remote TwinCAT Mock)
