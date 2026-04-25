@@ -21,6 +21,8 @@ namespace XTSPrimeMoverProject
     /// </summary>
     public partial class MainWindow : Window
     {
+        private Services.XTSSimulationEngine? _engine;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -28,6 +30,7 @@ namespace XTSPrimeMoverProject
             try
             {
                 var engine = new Services.XTSSimulationEngine();
+                _engine = engine;
                 var localGateway = new Services.LocalSimulationServiceGateway(engine);
 
                 bool useRemoteMock = ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
@@ -46,6 +49,7 @@ namespace XTSPrimeMoverProject
                 DataContext = viewModel;
 
                 viewModel.ExecutionLogs.CollectionChanged += OnExecutionLogsCollectionChanged;
+                Closed += OnWindowClosed;
             }
             catch (Exception ex)
             {
@@ -60,6 +64,12 @@ namespace XTSPrimeMoverProject
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
+        }
+
+        private void OnWindowClosed(object? sender, EventArgs e)
+        {
+            _engine?.Dispose();
+            _engine = null;
         }
 
         private void OnExecutionLogsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

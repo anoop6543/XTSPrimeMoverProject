@@ -131,7 +131,7 @@ The application uses a centralized error handling mechanism provided by `Service
 |---|---|---|
 | **Global (App.xaml.cs)** | `DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException` | Catches all unhandled exceptions, logs to `crash.log`, reports to `ErrorHandlingService`, shows user-friendly dialog |
 | **Engine (XTSSimulationEngine)** | Per-subsystem isolation via `RunSubsystem()` | Each tick subsystem (movers, robots, machines, watchdogs, etc.) runs in its own try/catch so a failure in one does not halt the others |
-| **Database (SimulationDataLogger)** | Retry with exponential backoff via `ExecuteWithRetry()` | All DB operations retry on transient SQLite errors (BUSY/LOCKED); circuit breaker prevents repeated hammering of a failing DB |
+| **Database (SimulationDataLogger)** | Retry with exponential backoff via `ExecuteWithRetry()` | All DB read operations retry on transient SQLite errors (BUSY/LOCKED); circuit breaker prevents repeated hammering of a failing DB |
 | **Gateway (Local + Remote Mock)** | Error wrapping + fallback returns | Commands log errors and degrade gracefully; queries return empty collections instead of throwing |
 | **ViewModel (MainViewModel)** | Try/catch on commands + event handlers | User-facing errors surface via status properties; internal errors report to the centralized service |
 | **Window (MainWindow)** | Constructor try/catch | Initialization failures show a MessageBox and report to the error service |
@@ -153,7 +153,47 @@ A file-based `crash.log` is written to the application base directory for any un
 
 ---
 
-## 7. Persistence Contract
+## 7. Threading Architecture
+
+The application separates concerns across dedicated threads to keep the UI responsive and prevent I/O from blocking simulation computation.
+
+### Thread Topology
+
+| Thread | Responsibility | Mechanism |
+|---|---|---|
+| **UI thread** | WPF rendering, data binding, command handlers, `ObservableCollection` updates | WPF Dispatcher |
+| **Simulation thread** | Engine tick computation (movers, robots, machines, watchdogs) | `System.Threading.Timer` callback via thread pool |
+| **DB-WriteQueue thread** | All database INSERT/UPDATE operations | Dedicated `Thread` consuming a `BlockingCollection<Action>` |
+| **Thread pool (ad-hoc)** | CSV export, network latency simulation in remote mock | `Task.Run` |
+
+### Synchronization
+
+- **`_simulationLock`** (in `XTSSimulationEngine`) — held during the entire `Update(deltaTime)` call, and also during `Start()` / `Stop()` / `Reset()` to prevent concurrent mutation.
+- **`Interlocked._tickActive`** — re-entrancy guard preventing overlapping timer callbacks.
+- **`Dispatcher.Invoke`** — after each simulation tick, the engine synchronously marshals `StateChanged` to the UI thread, ensuring the UI reads consistent state while the engine is paused between ticks.
+- **`Dispatcher.BeginInvoke`** — used for `LogGenerated` events and `OnEngineLogGenerated` in the ViewModel to avoid blocking the simulation thread on log delivery.
+- **Value snapshots** — all `SimulationDataLogger` write methods capture scalar values from model objects *before* queuing, preventing the background writer from reading stale or torn state.
+
+### Database Write Queue
+
+`DatabaseWriteQueue` uses a producer-consumer pattern:
+- Bounded capacity of 2048 pending writes to provide back-pressure
+- Single dedicated background thread (`ThreadPriority.BelowNormal`)
+- Graceful shutdown via `CompleteAdding()` + `Join(5s)` timeout
+- Write failures are logged but do not crash the consumer thread
+
+### Remote Gateway Latency
+
+`RemoteTwinCatMachineGatewayMock` simulates network latency using `Task.Delay` instead of `Thread.Sleep`, dispatching commands to the thread pool so the UI thread is never blocked. Query methods that return values remain synchronous since they are fast in-memory reads.
+
+### Shutdown
+
+- `MainWindow.Closed` event calls `XTSSimulationEngine.Dispose()` which stops the timer and drains the DB write queue.
+- `App.OnStartup` registers global exception handlers for `DispatcherUnhandledException`, `AppDomain.UnhandledException`, and `TaskScheduler.UnobservedTaskException` with crash log persistence.
+
+---
+
+## 8. Persistence Contract
 
 Current tables:
 - `Recipes`

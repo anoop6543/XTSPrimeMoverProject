@@ -55,6 +55,16 @@ Keep schema stable unless a migration is intentionally added.
 - Treat `Run.Text` bindings as explicit `Mode=OneWay` unless edit-input is needed.
 - Keep process logic out of XAML/code-behind.
 
+## Threading Model
+- Engine runs on a **background thread** (`System.Threading.Timer`), not the UI thread.
+- `StateChanged` is marshaled to the UI thread via `Dispatcher.Invoke` after each tick.
+- `LogGenerated` uses `Dispatcher.BeginInvoke` to avoid blocking the simulation thread.
+- All DB writes go through `DatabaseWriteQueue` (dedicated background consumer thread).
+- CSV exports run on the thread pool via `Task.Run`.
+- `RemoteTwinCatMachineGatewayMock` uses `Task.Delay` (not `Thread.Sleep`) for latency simulation.
+- `MainWindow.Closed` disposes the engine, which stops the timer and drains the DB queue.
+- See `docs/ARCHITECTURE.md` § Threading Architecture for full details.
+
 ## Working Assumptions
 - Routing order remains: `M0 -> M1 -> M2 -> M3 -> Exit`
 - `Part.NextMachineIndex` is the machine targeting source of truth.

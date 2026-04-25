@@ -1,17 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Windows.Threading;
 using XTSPrimeMoverProject.Models;
 
 namespace XTSPrimeMoverProject.Services
 {
-    public class XTSSimulationEngine
+    public class XTSSimulationEngine : IDisposable
     {
-        private readonly DispatcherTimer _timer;
+        private readonly System.Threading.Timer _timer;
+        private readonly Dispatcher? _dispatcher;
         private readonly Random _random;
         private readonly SimulationDataLogger _dataLogger;
         private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
+        private readonly object _simulationLock = new();
+        private int _tickActive;
         private ProductionOrchestration _orchestration;
 
         private readonly Dictionary<Guid, int> _partHistoryLogIndex;
@@ -72,6 +76,7 @@ namespace XTSPrimeMoverProject.Services
         {
             _random = new Random();
             _dataLogger = new SimulationDataLogger();
+            _dispatcher = Dispatcher.FromThread(Thread.CurrentThread) ?? Dispatcher.CurrentDispatcher;
 
             _partHistoryLogIndex = new Dictionary<Guid, int>();
             _moverAxes = new Dictionary<int, FbXtsMoverAxis>();
@@ -93,8 +98,7 @@ namespace XTSPrimeMoverProject.Services
 
             InitializeSystem();
 
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
-            _timer.Tick += OnTimerTick;
+            _timer = new System.Threading.Timer(OnTimerTick, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public IReadOnlyList<PartHistoryEventRecord> GetPartHistory(string trackingNumber) => _dataLogger.GetPartHistory(trackingNumber);
@@ -334,17 +338,25 @@ namespace XTSPrimeMoverProject.Services
 
         public void Start()
         {
-            IsRunning = true;
-            _lastUpdate = DateTime.Now;
-            _timer.Start();
+            lock (_simulationLock)
+            {
+                IsRunning = true;
+                _lastUpdate = DateTime.Now;
+                _timer.Change(0, 50);
+            }
+
             _dataLogger.LogAlarm("Info", "Simulation", "System started", true);
             Log("System started.");
         }
 
         public void Stop()
         {
-            IsRunning = false;
-            _timer.Stop();
+            lock (_simulationLock)
+            {
+                IsRunning = false;
+                _timer.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+
             _dataLogger.LogAlarm("Info", "Simulation", "System stopped", false);
             Log("System stopped.");
         }
@@ -352,25 +364,50 @@ namespace XTSPrimeMoverProject.Services
         public void Reset()
         {
             Stop();
-            InitializeSystem();
+            lock (_simulationLock)
+            {
+                InitializeSystem();
+            }
+
             StateChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void SetSimulationSpeed(double speedFactor)
         {
-            _simulationSpeedFactor = Math.Clamp(speedFactor, 0.1, 5.0);
+            Interlocked.Exchange(ref _simulationSpeedFactor, Math.Clamp(speedFactor, 0.1, 5.0));
         }
 
-        private void OnTimerTick(object? sender, EventArgs e)
+        private void OnTimerTick(object? state)
         {
+            if (Interlocked.CompareExchange(ref _tickActive, 1, 0) != 0)
+            {
+                return;
+            }
+
             try
             {
-                DateTime now = DateTime.Now;
-                double deltaTime = (now - _lastUpdate).TotalSeconds * _simulationSpeedFactor;
-                _lastUpdate = now;
+                lock (_simulationLock)
+                {
+                    if (!IsRunning)
+                    {
+                        return;
+                    }
 
-                Update(deltaTime);
-                StateChanged?.Invoke(this, EventArgs.Empty);
+                    DateTime now = DateTime.Now;
+                    double deltaTime = (now - _lastUpdate).TotalSeconds * _simulationSpeedFactor;
+                    _lastUpdate = now;
+
+                    Update(deltaTime);
+                }
+
+                if (_dispatcher != null && !_dispatcher.HasShutdownStarted)
+                {
+                    _dispatcher.Invoke(() => StateChanged?.Invoke(this, EventArgs.Empty));
+                }
+                else
+                {
+                    StateChanged?.Invoke(this, EventArgs.Empty);
+                }
             }
             catch (Exception ex)
             {
@@ -378,6 +415,10 @@ namespace XTSPrimeMoverProject.Services
                 _dataLogger.LogError("EngineTick", ex.Message, ex.ToString());
                 Log($"ENGINE ERROR: {ex.Message}");
                 Stop();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _tickActive, 0);
             }
         }
 
@@ -1069,7 +1110,27 @@ namespace XTSPrimeMoverProject.Services
 
         private void Log(string message)
         {
-            LogGenerated?.Invoke(this, $"{DateTime.Now:HH:mm:ss.fff} | {message}");
+            var msg = $"{DateTime.Now:HH:mm:ss.fff} | {message}";
+            if (_dispatcher == null || _dispatcher.HasShutdownStarted)
+            {
+                LogGenerated?.Invoke(this, msg);
+                return;
+            }
+
+            if (_dispatcher.CheckAccess())
+            {
+                LogGenerated?.Invoke(this, msg);
+            }
+            else
+            {
+                _dispatcher.BeginInvoke(() => LogGenerated?.Invoke(this, msg));
+            }
+        }
+
+        public void Dispose()
+        {
+            _timer.Dispose();
+            _dataLogger.Dispose();
         }
     }
 

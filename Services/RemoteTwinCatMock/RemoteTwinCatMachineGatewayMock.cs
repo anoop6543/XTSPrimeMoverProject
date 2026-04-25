@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using XTSPrimeMoverProject.Models;
 
 namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
@@ -9,8 +10,9 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
     /// Mock remote TwinCAT machine gateway.
     /// Wraps any IMachineGatewayService and injects a small command latency
     /// to emulate a remote control boundary.
-    /// All remote-boundary calls are wrapped with error handling to simulate
-    /// real network failure modes and provide graceful degradation.
+    /// Commands are dispatched to the thread pool so the UI thread is never blocked
+    /// by simulated network latency. Remote-boundary calls are wrapped with error
+    /// handling to provide graceful degradation on failure.
     /// </summary>
     public sealed class RemoteTwinCatMachineGatewayMock : IMachineGatewayService
     {
@@ -45,54 +47,22 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
         public void Start()
         {
-            try
-            {
-                SimulateNetworkCommandLatency();
-                _inner.Start();
-            }
-            catch (Exception ex)
-            {
-                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.Start", ex);
-            }
+            DispatchWithLatency(() => _inner.Start());
         }
 
         public void Stop()
         {
-            try
-            {
-                SimulateNetworkCommandLatency();
-                _inner.Stop();
-            }
-            catch (Exception ex)
-            {
-                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.Stop", ex);
-            }
+            DispatchWithLatency(() => _inner.Stop());
         }
 
         public void Reset()
         {
-            try
-            {
-                SimulateNetworkCommandLatency();
-                _inner.Reset();
-            }
-            catch (Exception ex)
-            {
-                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.Reset", ex);
-            }
+            DispatchWithLatency(() => _inner.Reset());
         }
 
         public void SetSimulationSpeed(double speed)
         {
-            try
-            {
-                SimulateNetworkCommandLatency();
-                _inner.SetSimulationSpeed(speed);
-            }
-            catch (Exception ex)
-            {
-                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.SetSimulationSpeed", ex);
-            }
+            DispatchWithLatency(() => _inner.SetSimulationSpeed(speed));
         }
 
         public IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus()
@@ -117,7 +87,7 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
         {
             try
             {
-                SimulateNetworkCommandLatency();
+                SimulateNetworkLatencySync();
                 return _inner.TryApplyOrchestration(stepDefinitions, out message);
             }
             catch (Exception ex)
@@ -146,7 +116,22 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
                 fallback: Array.Empty<SafetyGateStatus>())!;
         }
 
-        private void SimulateNetworkCommandLatency()
+        private void DispatchWithLatency(Action command)
+        {
+            if (_commandLatencyMs <= 0)
+            {
+                command();
+                return;
+            }
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(_commandLatencyMs).ConfigureAwait(false);
+                command();
+            });
+        }
+
+        private void SimulateNetworkLatencySync()
         {
             if (_commandLatencyMs > 0)
             {
