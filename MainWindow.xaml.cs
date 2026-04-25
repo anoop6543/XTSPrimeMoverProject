@@ -27,26 +27,43 @@ namespace XTSPrimeMoverProject
         {
             InitializeComponent();
 
-            _engine = new Services.XTSSimulationEngine();
-            var localGateway = new Services.LocalSimulationServiceGateway(_engine);
+            try
+            {
+                var engine = new Services.XTSSimulationEngine();
+                _engine = engine;
+                var localGateway = new Services.LocalSimulationServiceGateway(engine);
 
-            bool useRemoteMock = ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
-            int latencyMs = ReadAppIntSetting("RemoteTwinCatMachineGatewayMockLatencyMs", defaultValue: 40);
+                bool useRemoteMock = ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
+                int latencyMs = ReadAppIntSetting("RemoteTwinCatMachineGatewayMockLatencyMs", defaultValue: 40);
 
-            Services.IMachineGatewayService machineGateway = useRemoteMock
-                ? new RemoteTwinCatMachineGatewayMock(localGateway, commandLatencyMs: latencyMs)
-                : localGateway;
+                Services.IMachineGatewayService machineGateway = useRemoteMock
+                    ? new RemoteTwinCatMachineGatewayMock(localGateway, commandLatencyMs: latencyMs)
+                    : localGateway;
 
-            string gatewayModeStatus = useRemoteMock
-                ? $"Machine Gateway: Remote TwinCAT Mock ({latencyMs} ms)"
-                : "Machine Gateway: Local In-Process";
+                string gatewayModeStatus = useRemoteMock
+                    ? $"Machine Gateway: Remote TwinCAT Mock ({latencyMs} ms)"
+                    : "Machine Gateway: Local In-Process";
 
-            var dataGateway = (Services.IDataGatewayService)localGateway;
-            var viewModel = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
-            DataContext = viewModel;
+                var dataGateway = (Services.IDataGatewayService)localGateway;
+                var viewModel = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
+                DataContext = viewModel;
 
-            viewModel.ExecutionLogs.CollectionChanged += OnExecutionLogsCollectionChanged;
-            Closed += OnWindowClosed;
+                viewModel.ExecutionLogs.CollectionChanged += OnExecutionLogsCollectionChanged;
+                Closed += OnWindowClosed;
+            }
+            catch (Exception ex)
+            {
+                Services.ErrorHandlingService.Instance.ReportException(
+                    Services.ErrorCategory.Configuration,
+                    "MainWindow.Init",
+                    ex);
+
+                MessageBox.Show(
+                    $"Failed to initialize application:\n\n{ex.Message}\n\nThe application may not function correctly.",
+                    "XTS Prime Mover – Initialization Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         private void OnWindowClosed(object? sender, EventArgs e)

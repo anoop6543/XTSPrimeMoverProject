@@ -26,6 +26,7 @@ This file is the persistent repo-level handoff context for future Copilot sessio
 ## Core Runtime Files
 - Engine: `Services/XTSSimulationEngine.cs`
 - DB logger: `Services/SimulationDataLogger.cs`
+- Error handling: `Services/ErrorHandlingService.cs`
 - Gateway contracts: `Services/HmiServiceContracts.cs`
 - Local gateway: `Services/LocalSimulationServiceGateway.cs`
 - Remote machine mock: `Services/RemoteTwinCatMock/RemoteTwinCatMachineGatewayMock.cs`

@@ -18,6 +18,7 @@ namespace XTSPrimeMoverProject.ViewModels
     {
         private readonly IMachineGatewayService _machine;
         private readonly IDataGatewayService _data;
+        private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
         private readonly Dispatcher _dispatcher;
         private string _statusText;
         private bool _isRunning;
@@ -353,6 +354,7 @@ namespace XTSPrimeMoverProject.ViewModels
             }
             catch (Exception ex)
             {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.LoadSelectedDbTableRows", ex);
                 DbTableRowsView = CreateEmptyDbTableView();
                 DbTableStatus = $"DB table validation/load failed: {ex.Message}";
             }
@@ -451,19 +453,27 @@ namespace XTSPrimeMoverProject.ViewModels
 
         private void ApplyOrchestrationFromHmi()
         {
-            var stepDefs = BuildStepDefinitionsFromEditor();
-            if (_machine.TryApplyOrchestration(stepDefs, out var message))
+            try
             {
-                OrchestrationStatus = message;
-                OrchestrationValidationStatus = "Apply successful.";
-                LoadOrchestrationSteps();
-            }
-            else
-            {
-                OrchestrationStatus = message;
-            }
+                var stepDefs = BuildStepDefinitionsFromEditor();
+                if (_machine.TryApplyOrchestration(stepDefs, out var message))
+                {
+                    OrchestrationStatus = message;
+                    OrchestrationValidationStatus = "Apply successful.";
+                    LoadOrchestrationSteps();
+                }
+                else
+                {
+                    OrchestrationStatus = message;
+                }
 
-            RefreshSafetyGates();
+                RefreshSafetyGates();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.ApplyOrchestration", ex);
+                OrchestrationStatus = $"Apply failed: {ex.Message}";
+            }
         }
 
         private void PreviewOrchestrationValidation()
@@ -541,6 +551,7 @@ namespace XTSPrimeMoverProject.ViewModels
             }
             catch (Exception ex)
             {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.InspectPartHistory", ex);
                 PartHistoryStatus = $"Error reading history: {ex.Message}";
             }
         }
@@ -564,6 +575,7 @@ namespace XTSPrimeMoverProject.ViewModels
             }
             catch (Exception ex)
             {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.ExportCsv", ex);
                 CsvExportStatus = $"Export failed: {ex.Message}";
             }
         }
@@ -609,64 +621,95 @@ namespace XTSPrimeMoverProject.ViewModels
 
         private void OnEngineStateChanged(object? sender, EventArgs e)
         {
-            foreach (var mvm in Movers)
+            try
             {
-                mvm.Update();
-            }
+                foreach (var mvm in Movers)
+                {
+                    mvm.Update();
+                }
 
-            foreach (var mvm in Machines)
+                foreach (var mvm in Machines)
+                {
+                    mvm.Update();
+                }
+
+                foreach (var rvm in Robots)
+                {
+                    rvm.Update();
+                }
+
+                RefreshWatchdogStatuses();
+
+                UpdateStatus();
+                OnPropertyChanged(nameof(TotalPartsProduced));
+                OnPropertyChanged(nameof(GoodPartsCount));
+                OnPropertyChanged(nameof(BadPartsCount));
+                OnPropertyChanged(nameof(YieldPercentage));
+                OnPropertyChanged(nameof(PrimeMoverEnteredCount));
+                OnPropertyChanged(nameof(PrimeMoverExitedCount));
+                OnPropertyChanged(nameof(DatabasePath));
+                OnPropertyChanged(nameof(EntryZoneBlink));
+                OnPropertyChanged(nameof(ExitZoneBlink));
+            }
+            catch (Exception ex)
             {
-                mvm.Update();
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.OnEngineStateChanged", ex, wasRecovered: true);
             }
-
-            foreach (var rvm in Robots)
-            {
-                rvm.Update();
-            }
-
-            RefreshWatchdogStatuses();
-
-            UpdateStatus();
-            OnPropertyChanged(nameof(TotalPartsProduced));
-            OnPropertyChanged(nameof(GoodPartsCount));
-            OnPropertyChanged(nameof(BadPartsCount));
-            OnPropertyChanged(nameof(YieldPercentage));
-            OnPropertyChanged(nameof(PrimeMoverEnteredCount));
-            OnPropertyChanged(nameof(PrimeMoverExitedCount));
-            OnPropertyChanged(nameof(DatabasePath));
-            OnPropertyChanged(nameof(EntryZoneBlink));
-            OnPropertyChanged(nameof(ExitZoneBlink));
         }
 
         private void Start()
         {
-            _machine.Start();
-            IsRunning = true;
-            UpdateStatus();
+            try
+            {
+                _machine.Start();
+                IsRunning = true;
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.Start", ex);
+                StatusText = $"Start failed: {ex.Message}";
+            }
         }
 
         private void Stop()
         {
-            _machine.Stop();
-            IsRunning = false;
-            UpdateStatus();
+            try
+            {
+                _machine.Stop();
+                IsRunning = false;
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.Stop", ex);
+                StatusText = $"Stop failed: {ex.Message}";
+            }
         }
 
         private void Reset()
         {
-            _machine.Reset();
-            InitializeViewModels();
-            IsRunning = false;
-            UpdateStatus();
-            CsvExportStatus = "CSV export idle.";
-            PartHistoryStatus = "Enter a tracking number and click Inspect.";
-            PartHistorySummary = "No part selected.";
-            PartHistoryEvents.Clear();
-            ExecutionLogs.Clear();
-            RefreshWatchdogStatuses();
-            _machine.SetSimulationSpeed(_simulationSpeed);
-            LoadDbTables();
-            LoadOrchestrationSteps();
+            try
+            {
+                _machine.Reset();
+                InitializeViewModels();
+                IsRunning = false;
+                UpdateStatus();
+                CsvExportStatus = "CSV export idle.";
+                PartHistoryStatus = "Enter a tracking number and click Inspect.";
+                PartHistorySummary = "No part selected.";
+                PartHistoryEvents.Clear();
+                ExecutionLogs.Clear();
+                RefreshWatchdogStatuses();
+                _machine.SetSimulationSpeed(_simulationSpeed);
+                LoadDbTables();
+                LoadOrchestrationSteps();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.Reset", ex);
+                StatusText = $"Reset failed: {ex.Message}";
+            }
         }
 
         private void UpdateStatus()

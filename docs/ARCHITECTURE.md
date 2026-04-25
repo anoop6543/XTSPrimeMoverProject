@@ -121,7 +121,39 @@ Implemented operator debug signals:
 
 ---
 
-## 6. Threading Architecture
+## 6. Error Handling Architecture
+
+The application uses a centralized error handling mechanism provided by `Services/ErrorHandlingService.cs`.
+
+### Layers
+
+| Layer | Mechanism | Behavior |
+|---|---|---|
+| **Global (App.xaml.cs)** | `DispatcherUnhandledException`, `AppDomain.UnhandledException`, `TaskScheduler.UnobservedTaskException` | Catches all unhandled exceptions, logs to `crash.log`, reports to `ErrorHandlingService`, shows user-friendly dialog |
+| **Engine (XTSSimulationEngine)** | Per-subsystem isolation via `RunSubsystem()` | Each tick subsystem (movers, robots, machines, watchdogs, etc.) runs in its own try/catch so a failure in one does not halt the others |
+| **Database (SimulationDataLogger)** | Retry with exponential backoff via `ExecuteWithRetry()` | All DB read operations retry on transient SQLite errors (BUSY/LOCKED); circuit breaker prevents repeated hammering of a failing DB |
+| **Gateway (Local + Remote Mock)** | Error wrapping + fallback returns | Commands log errors and degrade gracefully; queries return empty collections instead of throwing |
+| **ViewModel (MainViewModel)** | Try/catch on commands + event handlers | User-facing errors surface via status properties; internal errors report to the centralized service |
+| **Window (MainWindow)** | Constructor try/catch | Initialization failures show a MessageBox and report to the error service |
+
+### ErrorHandlingService Features
+
+- **Singleton** (`ErrorHandlingService.Instance`) — single point of error aggregation
+- **Error classification** — severity (Info/Warning/Error/Critical) and category (Database/Engine/Gateway/ViewModel/Unhandled/Configuration)
+- **Retry with exponential backoff** — `ExecuteWithRetry` for both void and return-value operations
+- **Circuit breaker** — per-operation breaker that opens after 5 consecutive failures, with 30-second cooldown
+- **Throttling** — duplicate errors within a 2-second window are suppressed
+- **Error log** — in-memory ring buffer of last 500 errors, queryable by category
+- **Event** — `ErrorOccurred` event for UI notification
+- **Transient detection** — `IOException`, `TimeoutException`, and SQLite BUSY/LOCKED are classified as retryable
+
+### Crash Log
+
+A file-based `crash.log` is written to the application base directory for any unhandled exception caught by the global handlers. This persists across sessions and serves as a last-resort diagnostic when the in-memory error log is unavailable.
+
+---
+
+## 7. Threading Architecture
 
 The application separates concerns across dedicated threads to keep the UI responsive and prevent I/O from blocking simulation computation.
 
@@ -161,7 +193,7 @@ The application separates concerns across dedicated threads to keep the UI respo
 
 ---
 
-## 7. Persistence Contract
+## 8. Persistence Contract
 
 Current tables:
 - `Recipes`

@@ -12,6 +12,7 @@ namespace XTSPrimeMoverProject.Services
     public class SimulationDataLogger : IDisposable
     {
         private readonly string _connectionString;
+        private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
         private readonly DatabaseWriteQueue _writeQueue = new();
         private static readonly HashSet<string> AllowedTables = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -31,7 +32,17 @@ namespace XTSPrimeMoverProject.Services
         {
             DatabasePath = dbPath ?? Path.Combine(AppContext.BaseDirectory, "XTSFactorySim.db");
             _connectionString = $"Data Source={DatabasePath}";
-            Initialize();
+            InitializeSafe();
+        }
+
+        private void InitializeSafe()
+        {
+            _errorHandler.ExecuteWithRetry(
+                Initialize,
+                "DB.Initialize",
+                ErrorCategory.Database,
+                maxRetries: 3,
+                baseDelayMs: 200);
         }
 
         private void Initialize()
@@ -183,6 +194,7 @@ VALUES ($machineId, $stationId, $machineName, $stationName, $stationType, $proce
                 using var connection = new SqliteConnection(_connectionString);
                 connection.Open();
 
+
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = @"
 INSERT OR REPLACE INTO Parts (PartId, TrackingNumber, CreatedAt, EnteredPrimeMoverAt, ExitedPrimeMoverAt, FinalStatus, IsGood, HasDefect)
@@ -206,6 +218,7 @@ VALUES ($partId, $tracking, $createdAt, $enteredAt, NULL, NULL, NULL, $hasDefect
             {
                 using var connection = new SqliteConnection(_connectionString);
                 connection.Open();
+
 
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = @"
@@ -234,6 +247,7 @@ VALUES ($partId, $tracking, $eventTime, $eventType, $location, $details);";
                 using var connection = new SqliteConnection(_connectionString);
                 connection.Open();
 
+
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = @"
 INSERT INTO MachineRuns (MachineId, MachineName, PartId, TrackingNumber, EnteredAt, ExitedAt, IsGood)
@@ -258,6 +272,7 @@ VALUES ($machineId, $machineName, $partId, $tracking, $enteredAt, NULL, NULL);";
             {
                 using var connection = new SqliteConnection(_connectionString);
                 connection.Open();
+
 
                 using var cmd = connection.CreateCommand();
                 cmd.CommandText = @"
@@ -385,41 +400,46 @@ VALUES ($time, $severity, $source, $message, $active);";
 
         public List<PartHistoryEventRecord> GetPartHistory(string trackingNumber)
         {
-            var result = new List<PartHistoryEventRecord>();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                var result = new List<PartHistoryEventRecord>();
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 SELECT EventTime, EventType, Location, Details
 FROM PartEvents
 WHERE TrackingNumber = $tracking
 ORDER BY EventTime;";
-            cmd.Parameters.AddWithValue("$tracking", trackingNumber);
+                cmd.Parameters.AddWithValue("$tracking", trackingNumber);
 
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                result.Add(new PartHistoryEventRecord
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    EventTime = reader["EventTime"]?.ToString() ?? string.Empty,
-                    EventType = reader["EventType"]?.ToString() ?? string.Empty,
-                    Location = reader["Location"]?.ToString() ?? string.Empty,
-                    Details = reader["Details"]?.ToString() ?? string.Empty
-                });
-            }
+                    result.Add(new PartHistoryEventRecord
+                    {
+                        EventTime = reader["EventTime"]?.ToString() ?? string.Empty,
+                        EventType = reader["EventType"]?.ToString() ?? string.Empty,
+                        Location = reader["Location"]?.ToString() ?? string.Empty,
+                        Details = reader["Details"]?.ToString() ?? string.Empty
+                    });
+                }
 
-            return result;
+                return result;
+            }, "DB.GetPartHistory", ErrorCategory.Database, fallback: new List<PartHistoryEventRecord>())!;
         }
 
         public PartSummaryRecord? GetPartSummary(string trackingNumber)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 SELECT p.PartId,
        p.TrackingNumber,
        p.CreatedAt,
@@ -433,16 +453,16 @@ LEFT JOIN Results r ON r.PartId = p.PartId
 WHERE p.TrackingNumber = $tracking
 ORDER BY r.ResultId DESC
 LIMIT 1;";
-            cmd.Parameters.AddWithValue("$tracking", trackingNumber);
+                cmd.Parameters.AddWithValue("$tracking", trackingNumber);
 
-            using var reader = cmd.ExecuteReader();
-            if (!reader.Read())
-            {
-                return null;
-            }
+                using var reader = cmd.ExecuteReader();
+                if (!reader.Read())
+                {
+                    return null;
+                }
 
-            return new PartSummaryRecord
-            {
+                return new PartSummaryRecord
+                {
                 PartId = reader["PartId"]?.ToString() ?? string.Empty,
                 TrackingNumber = reader["TrackingNumber"]?.ToString() ?? string.Empty,
                 CreatedAt = reader["CreatedAt"]?.ToString() ?? string.Empty,
@@ -450,8 +470,9 @@ LIMIT 1;";
                 ExitedPrimeMoverAt = reader["ExitedPrimeMoverAt"]?.ToString() ?? string.Empty,
                 FinalStatus = reader["FinalStatus"]?.ToString() ?? "InProgress",
                 CompletedStations = Convert.ToInt32(reader["CompletedStations"]),
-                TotalStations = Convert.ToInt32(reader["TotalStations"])
-            };
+                    TotalStations = Convert.ToInt32(reader["TotalStations"])
+                };
+            }, "DB.GetPartSummary", ErrorCategory.Database, fallback: null);
         }
 
         public List<string> GetExportableTables()
@@ -461,57 +482,66 @@ LIMIT 1;";
 
         public List<string> GetAllTables()
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = @"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = @"
 SELECT name
 FROM sqlite_master
 WHERE type='table'
   AND name NOT LIKE 'sqlite_%'
 ORDER BY name;";
 
-            var result = new List<string>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                result.Add(reader["name"]?.ToString() ?? string.Empty);
-            }
+                var result = new List<string>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    result.Add(reader["name"]?.ToString() ?? string.Empty);
+                }
 
-            return result.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+                return result.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            }, "DB.GetAllTables", ErrorCategory.Database, fallback: new List<string>())!;
         }
 
         public List<string> GetTableColumns(string tableName)
         {
             ValidateTableName(tableName);
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"PRAGMA table_info({tableName});";
-
-            var columns = new List<string>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            return _errorHandler.ExecuteWithRetry(() =>
             {
-                columns.Add(reader["name"]?.ToString() ?? string.Empty);
-            }
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            return columns.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"PRAGMA table_info({tableName});";
+
+                var columns = new List<string>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    columns.Add(reader["name"]?.ToString() ?? string.Empty);
+                }
+
+                return columns.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+            }, "DB.GetTableColumns", ErrorCategory.Database, fallback: new List<string>())!;
         }
 
         public int GetTableRowCount(string tableName)
         {
             ValidateTableName(tableName);
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            return _errorHandler.ExecuteWithRetry(() =>
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
 
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"SELECT COUNT(*) FROM {tableName};";
-            return Convert.ToInt32(cmd.ExecuteScalar());
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"SELECT COUNT(*) FROM {tableName};";
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }, "DB.GetTableRowCount", ErrorCategory.Database, fallback: 0);
         }
 
         public List<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500)
@@ -520,28 +550,31 @@ ORDER BY name;";
 
             int safeMaxRows = Math.Clamp(maxRows, 1, 5000);
 
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
-
-            using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"SELECT * FROM {tableName} LIMIT {safeMaxRows};";
-
-            var rows = new List<Dictionary<string, string>>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            return _errorHandler.ExecuteWithRetry(() =>
             {
-                var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                for (int i = 0; i < reader.FieldCount; i++)
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = $"SELECT * FROM {tableName} LIMIT {safeMaxRows};";
+
+                var rows = new List<Dictionary<string, string>>();
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    string key = reader.GetName(i);
-                    string value = reader.IsDBNull(i) ? string.Empty : reader.GetValue(i)?.ToString() ?? string.Empty;
-                    row[key] = value;
+                    var row = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        string key = reader.GetName(i);
+                        string value = reader.IsDBNull(i) ? string.Empty : reader.GetValue(i)?.ToString() ?? string.Empty;
+                        row[key] = value;
+                    }
+
+                    rows.Add(row);
                 }
 
-                rows.Add(row);
-            }
-
-            return rows;
+                return rows;
+            }, "DB.GetTableRows", ErrorCategory.Database, fallback: new List<Dictionary<string, string>>())!;
         }
 
         public string ExportTableToCsv(string tableName, string? exportDirectory = null)

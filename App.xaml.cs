@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using XTSPrimeMoverProject.Services;
 
 namespace XTSPrimeMoverProject
 {
@@ -25,6 +26,12 @@ namespace XTSPrimeMoverProject
 
         private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
+            ErrorHandlingService.Instance.ReportException(
+                ErrorCategory.Unhandled,
+                "UI Thread",
+                e.Exception,
+                wasRecovered: true);
+
             WriteCrashLog("DispatcherUnhandledException", e.Exception);
 
             MessageBox.Show(
@@ -41,6 +48,12 @@ namespace XTSPrimeMoverProject
             var ex = e.ExceptionObject as Exception;
             if (ex != null)
             {
+                ErrorHandlingService.Instance.ReportException(
+                    ErrorCategory.Unhandled,
+                    "AppDomain",
+                    ex,
+                    wasRecovered: !e.IsTerminating);
+
                 WriteCrashLog("AppDomainUnhandledException", ex);
             }
 
@@ -56,6 +69,12 @@ namespace XTSPrimeMoverProject
 
         private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
+            ErrorHandlingService.Instance.ReportException(
+                ErrorCategory.Unhandled,
+                "TaskScheduler",
+                e.Exception,
+                wasRecovered: true);
+
             WriteCrashLog("UnobservedTaskException", e.Exception);
             e.SetObserved();
         }

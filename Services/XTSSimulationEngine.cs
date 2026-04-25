@@ -13,6 +13,7 @@ namespace XTSPrimeMoverProject.Services
         private readonly Dispatcher? _dispatcher;
         private readonly Random _random;
         private readonly SimulationDataLogger _dataLogger;
+        private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
         private readonly object _simulationLock = new();
         private int _tickActive;
         private ProductionOrchestration _orchestration;
@@ -410,6 +411,7 @@ namespace XTSPrimeMoverProject.Services
             }
             catch (Exception ex)
             {
+                _errorHandler.ReportException(ErrorCategory.Engine, "EngineTick", ex);
                 _dataLogger.LogError("EngineTick", ex.Message, ex.ToString());
                 Log($"ENGINE ERROR: {ex.Message}");
                 Stop();
@@ -422,16 +424,30 @@ namespace XTSPrimeMoverProject.Services
 
         private void Update(double deltaTime)
         {
-            UpdateMovers(deltaTime);
-            UpdateRobots(deltaTime);
-            UpdateMachines(deltaTime);
-            ProcessRobotLogic();
-            SyncPartHistoryLogs();
-            ProcessPrimeMoverExits();
-            LoadNewParts();
-            RunWatchdogs(deltaTime);
-            CapturePeriodicSnapshot();
-            UpdateZoneBlinkers(deltaTime);
+            RunSubsystem(() => UpdateMovers(deltaTime), "UpdateMovers");
+            RunSubsystem(() => UpdateRobots(deltaTime), "UpdateRobots");
+            RunSubsystem(() => UpdateMachines(deltaTime), "UpdateMachines");
+            RunSubsystem(ProcessRobotLogic, "ProcessRobotLogic");
+            RunSubsystem(SyncPartHistoryLogs, "SyncPartHistoryLogs");
+            RunSubsystem(ProcessPrimeMoverExits, "ProcessPrimeMoverExits");
+            RunSubsystem(LoadNewParts, "LoadNewParts");
+            RunSubsystem(() => RunWatchdogs(deltaTime), "RunWatchdogs");
+            RunSubsystem(CapturePeriodicSnapshot, "CapturePeriodicSnapshot");
+            RunSubsystem(() => UpdateZoneBlinkers(deltaTime), "UpdateZoneBlinkers");
+        }
+
+        private void RunSubsystem(Action subsystem, string name)
+        {
+            try
+            {
+                subsystem();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Engine, $"Engine.{name}", ex, wasRecovered: true);
+                _dataLogger.LogError($"Engine.{name}", ex.Message, ex.ToString());
+                Log($"Subsystem '{name}' error (recovered): {ex.Message}");
+            }
         }
 
         private void UpdateMovers(double deltaTime)
