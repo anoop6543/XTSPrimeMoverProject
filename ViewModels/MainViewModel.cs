@@ -125,7 +125,7 @@ namespace XTSPrimeMoverProject.ViewModels
 
                 _selectedDbTable = value;
                 OnPropertyChanged();
-                LoadSelectedDbTableRows();
+                _ = LoadSelectedDbTableRowsAsync();
             }
         }
 
@@ -234,25 +234,20 @@ namespace XTSPrimeMoverProject.ViewModels
             StartCommand = new RelayCommand(Start, () => !IsRunning);
             StopCommand = new RelayCommand(Stop, () => IsRunning);
             ResetCommand = new RelayCommand(Reset);
-            InspectPartHistoryCommand = new RelayCommand(InspectPartHistory);
-            ExportCsvCommand = new RelayCommand(ExportCsv, () => !string.IsNullOrWhiteSpace(SelectedExportTable));
-            RefreshDbTablesCommand = new RelayCommand(LoadDbTables);
+            InspectPartHistoryCommand = new RelayCommand(InspectPartHistoryAsync);
+            ExportCsvCommand = new RelayCommand(ExportCsvAsync, () => !string.IsNullOrWhiteSpace(SelectedExportTable));
+            RefreshDbTablesCommand = new RelayCommand(ReloadDbTablesAsync);
             MoveOrchestrationStepUpCommand = new RelayCommand<object?>(MoveOrchestrationStepUp);
             MoveOrchestrationStepDownCommand = new RelayCommand<object?>(MoveOrchestrationStepDown);
-            ApplyOrchestrationCommand = new RelayCommand(ApplyOrchestrationFromHmi);
-            ReloadOrchestrationCommand = new RelayCommand(LoadOrchestrationSteps);
-            PreviewOrchestrationValidationCommand = new RelayCommand(PreviewOrchestrationValidation);
-            RefreshSafetyGatesCommand = new RelayCommand(RefreshSafetyGates);
+            ApplyOrchestrationCommand = new RelayCommand(ApplyOrchestrationFromHmiAsync);
+            ReloadOrchestrationCommand = new RelayCommand(LoadOrchestrationStepsAsync);
+            PreviewOrchestrationValidationCommand = new RelayCommand(PreviewOrchestrationValidationAsync);
+            RefreshSafetyGatesCommand = new RelayCommand(RefreshSafetyGatesAsync);
 
             _machine.SetSimulationSpeed(_simulationSpeed);
 
             InitializeViewModels();
-            LoadExportTables();
-            LoadDbTables();
-            LoadOrchestrationSteps();
-            RefreshSafetyGates();
-            RefreshWatchdogStatuses();
-            UpdateStatus();
+            _ = InitializeAsync();
         }
 
         private void InitializeViewModels()
@@ -276,49 +271,146 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        private void LoadExportTables()
+        private async Task InitializeAsync()
         {
-            ExportTables.Clear();
-            foreach (var table in _data.GetExportableTables())
-            {
-                ExportTables.Add(table);
-            }
+            LoadExportTablesAsync();
+            ReloadDbTablesAsync();
+            LoadOrchestrationStepsAsync();
+            await RefreshSafetyGatesCoreAsync().ConfigureAwait(true);
+            await RefreshWatchdogStatusesAsync().ConfigureAwait(true);
+            UpdateStatus();
+        }
 
-            if (ExportTables.Count > 0)
+        private async void LoadExportTablesAsync()
+        {
+            try
             {
-                SelectedExportTable = ExportTables[0];
+                var tables = await _data.GetExportableTablesAsync().ConfigureAwait(true);
+
+                ExportTables.Clear();
+                foreach (var table in tables)
+                {
+                    ExportTables.Add(table);
+                }
+
+                if (ExportTables.Count > 0)
+                {
+                    SelectedExportTable = ExportTables[0];
+                }
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.LoadExportTablesAsync", ex);
             }
         }
 
-        private void LoadDbTables()
-        {
-            DbTables.Clear();
-            foreach (var table in _data.GetAllTables())
-            {
-                DbTables.Add(table);
-            }
 
-            if (DbTables.Count == 0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        private async void ReloadDbTablesAsync()
+        {
+            try
             {
-                SelectedDbTable = string.Empty;
+                var tables = await _data.GetAllTablesAsync().ConfigureAwait(true);
+
+                DbTables.Clear();
+                foreach (var table in tables)
+                {
+                    DbTables.Add(table);
+                }
+
+                if (DbTables.Count == 0)
+                {
+                    SelectedDbTable = string.Empty;
+                    DbTableRowsView = CreateEmptyDbTableView();
+                    DbTableStatus = "No tables found in the runtime database.";
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(SelectedDbTable) || !DbTables.Contains(SelectedDbTable))
+                {
+                    SelectedDbTable = DbTables[0];
+                }
+                else
+                {
+                    await LoadSelectedDbTableRowsAsync().ConfigureAwait(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.ReloadDbTablesAsync", ex);
                 DbTableRowsView = CreateEmptyDbTableView();
-                DbTableStatus = "No tables found in the runtime database.";
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(SelectedDbTable) || !DbTables.Contains(SelectedDbTable))
-            {
-                SelectedDbTable = DbTables[0];
-            }
-            else
-            {
-                LoadSelectedDbTableRows();
+                DbTableStatus = $"DB table load failed: {ex.Message}";
             }
         }
 
-        private void LoadSelectedDbTableRows()
+        private async Task LoadSelectedDbTableRowsAsync()
         {
-            if (string.IsNullOrWhiteSpace(SelectedDbTable))
+            string tableName = SelectedDbTable;
+            if (string.IsNullOrWhiteSpace(tableName))
             {
                 DbTableRowsView = CreateEmptyDbTableView();
                 DbTableStatus = "Select a table to view rows.";
@@ -327,11 +419,16 @@ namespace XTSPrimeMoverProject.ViewModels
 
             try
             {
-                var columns = _data.GetTableColumns(SelectedDbTable);
-                int totalRows = _data.GetTableRowCount(SelectedDbTable);
-                var rows = _data.GetTableRows(SelectedDbTable, 500);
+                var columns = await _data.GetTableColumnsAsync(tableName).ConfigureAwait(true);
+                int totalRows = await _data.GetTableRowCountAsync(tableName).ConfigureAwait(true);
+                var rows = await _data.GetTableRowsAsync(tableName, 500).ConfigureAwait(true);
 
-                var table = new DataTable(SelectedDbTable);
+                if (!string.Equals(tableName, SelectedDbTable, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                var table = new DataTable(tableName);
                 foreach (var col in columns)
                 {
                     table.Columns.Add(col, typeof(string));
@@ -350,11 +447,11 @@ namespace XTSPrimeMoverProject.ViewModels
 
                 DbTableRowsView = table.DefaultView;
                 ApplyDbTableFilter();
-                DbTableStatus = $"Loaded {table.Rows.Count} rows (of {totalRows}) from {SelectedDbTable}. Columns: {table.Columns.Count}.";
+                DbTableStatus = $"Loaded {table.Rows.Count} rows (of {totalRows}) from {tableName}. Columns: {table.Columns.Count}.";
             }
             catch (Exception ex)
             {
-                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.LoadSelectedDbTableRows", ex);
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.LoadSelectedDbTableRowsAsync", ex);
                 DbTableRowsView = CreateEmptyDbTableView();
                 DbTableStatus = $"DB table validation/load failed: {ex.Message}";
             }
@@ -389,24 +486,35 @@ namespace XTSPrimeMoverProject.ViewModels
             DbTableRowsView.RowFilter = string.Join(" OR ", expressions);
         }
 
-        private void LoadOrchestrationSteps()
+        private async void LoadOrchestrationStepsAsync()
         {
-            OrchestrationSteps.Clear();
-            foreach (var step in _machine.GetOrchestrationSteps().OrderBy(s => s.Order))
+            try
             {
-                OrchestrationSteps.Add(new OrchestrationStepEditItem
-                {
-                    Order = step.Order,
-                    MachineId = step.MachineId,
-                    MachineName = step.MachineName,
-                    OutputStatus = step.OutputStatus.ToString()
-                });
-            }
+                var steps = await _machine.GetOrchestrationStepsAsync().ConfigureAwait(true);
 
-            OrchestrationStatus = OrchestrationSteps.Count == 0
-                ? "No orchestration steps available."
-                : $"Loaded {OrchestrationSteps.Count} steps. Edit order/output then apply when simulation is stopped.";
-            RefreshSafetyGates();
+                OrchestrationSteps.Clear();
+                foreach (var step in steps.OrderBy(s => s.Order))
+                {
+                    OrchestrationSteps.Add(new OrchestrationStepEditItem
+                    {
+                        Order = step.Order,
+                        MachineId = step.MachineId,
+                        MachineName = step.MachineName,
+                        OutputStatus = step.OutputStatus.ToString()
+                    });
+                }
+
+                OrchestrationStatus = OrchestrationSteps.Count == 0
+                    ? "No orchestration steps available."
+                    : $"Loaded {OrchestrationSteps.Count} steps. Edit order/output then apply when simulation is stopped.";
+
+                await RefreshSafetyGatesCoreAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.LoadOrchestrationStepsAsync", ex);
+                OrchestrationStatus = $"Load failed: {ex.Message}";
+            }
         }
 
         private void MoveOrchestrationStepUp(object? parameter)
@@ -451,45 +559,51 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        private void ApplyOrchestrationFromHmi()
+        private async void ApplyOrchestrationFromHmiAsync()
         {
             try
             {
                 var stepDefs = BuildStepDefinitionsFromEditor();
-                if (_machine.TryApplyOrchestration(stepDefs, out var message))
+                var result = await _machine.ApplyOrchestrationAsync(stepDefs).ConfigureAwait(true);
+                OrchestrationStatus = result.Message;
+
+                if (result.Success)
                 {
-                    OrchestrationStatus = message;
                     OrchestrationValidationStatus = "Apply successful.";
-                    LoadOrchestrationSteps();
-                }
-                else
-                {
-                    OrchestrationStatus = message;
+                    LoadOrchestrationStepsAsync();
                 }
 
-                RefreshSafetyGates();
+                await RefreshSafetyGatesCoreAsync().ConfigureAwait(true);
             }
             catch (Exception ex)
             {
-                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.ApplyOrchestration", ex);
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.ApplyOrchestrationAsync", ex);
                 OrchestrationStatus = $"Apply failed: {ex.Message}";
             }
         }
 
-        private void PreviewOrchestrationValidation()
+        private async void PreviewOrchestrationValidationAsync()
         {
-            var stepDefs = BuildStepDefinitionsFromEditor();
-            var errors = _machine.PreviewOrchestrationValidation(stepDefs);
-            if (errors.Count == 0)
+            try
             {
-                OrchestrationValidationStatus = "Validation OK: no rule violations.";
-            }
-            else
-            {
-                OrchestrationValidationStatus = "Validation errors: " + string.Join(" | ", errors);
-            }
+                var stepDefs = BuildStepDefinitionsFromEditor();
+                var errors = await _machine.PreviewOrchestrationValidationAsync(stepDefs).ConfigureAwait(true);
+                if (errors.Count == 0)
+                {
+                    OrchestrationValidationStatus = "Validation OK: no rule violations.";
+                }
+                else
+                {
+                    OrchestrationValidationStatus = "Validation errors: " + string.Join(" | ", errors);
+                }
 
-            RefreshSafetyGates();
+                await RefreshSafetyGatesCoreAsync().ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.PreviewOrchestrationValidationAsync", ex);
+                OrchestrationValidationStatus = $"Validation failed: {ex.Message}";
+            }
         }
 
         private List<OrchestrationStepDefinition> BuildStepDefinitionsFromEditor()
@@ -504,10 +618,17 @@ namespace XTSPrimeMoverProject.ViewModels
                 .ToList();
         }
 
-        private void RefreshSafetyGates()
+        private async void RefreshSafetyGatesAsync()
         {
+            await RefreshSafetyGatesCoreAsync().ConfigureAwait(true);
+        }
+
+        private async Task RefreshSafetyGatesCoreAsync()
+        {
+            var gates = await _machine.GetOrchestrationSafetyGateStatusesAsync().ConfigureAwait(true);
+
             SafetyGates.Clear();
-            foreach (var gate in _machine.GetOrchestrationSafetyGateStatuses())
+            foreach (var gate in gates)
             {
                 SafetyGates.Add(new SafetyGateStatusItemViewModel
                 {
@@ -518,7 +639,7 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        private void InspectPartHistory()
+        private async void InspectPartHistoryAsync()
         {
             string tracking = PartHistoryTrackingNumber?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(tracking))
@@ -532,13 +653,13 @@ namespace XTSPrimeMoverProject.ViewModels
             try
             {
                 PartHistoryEvents.Clear();
-                var events = _data.GetPartHistory(tracking);
+                var events = await _data.GetPartHistoryAsync(tracking).ConfigureAwait(true);
                 foreach (var item in events)
                 {
                     PartHistoryEvents.Add(item);
                 }
 
-                var summary = _data.GetPartSummary(tracking);
+                var summary = await _data.GetPartSummaryAsync(tracking).ConfigureAwait(true);
                 if (summary == null)
                 {
                     PartHistoryStatus = $"No records found for {tracking}.";
@@ -551,12 +672,12 @@ namespace XTSPrimeMoverProject.ViewModels
             }
             catch (Exception ex)
             {
-                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.InspectPartHistory", ex);
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.InspectPartHistoryAsync", ex);
                 PartHistoryStatus = $"Error reading history: {ex.Message}";
             }
         }
 
-        private async void ExportCsv()
+        private async void ExportCsvAsync()
         {
             if (string.IsNullOrWhiteSpace(SelectedExportTable))
             {
@@ -570,12 +691,12 @@ namespace XTSPrimeMoverProject.ViewModels
 
             try
             {
-                string filePath = await Task.Run(() => _data.ExportTableToCsv(tableName, exportDir));
+                string filePath = await _data.ExportTableToCsvAsync(tableName, exportDir).ConfigureAwait(true);
                 CsvExportStatus = $"Exported {tableName} -> {filePath}";
             }
             catch (Exception ex)
             {
-                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.ExportCsv", ex);
+                _errorHandler.ReportException(ErrorCategory.ViewModel, "MainVM.ExportCsvAsync", ex);
                 CsvExportStatus = $"Export failed: {ex.Message}";
             }
         }
@@ -595,9 +716,9 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        private void RefreshWatchdogStatuses()
+        private async Task RefreshWatchdogStatusesAsync()
         {
-            var latest = _machine.GetWatchdogStatus();
+            var latest = await _machine.GetWatchdogStatusAsync().ConfigureAwait(true);
 
             var snapshot = latest
                 .Select(x => new WatchdogStatusItemViewModel
@@ -638,7 +759,7 @@ namespace XTSPrimeMoverProject.ViewModels
                     rvm.Update();
                 }
 
-                RefreshWatchdogStatuses();
+                _ = RefreshWatchdogStatusesAsync();
 
                 UpdateStatus();
                 OnPropertyChanged(nameof(TotalPartsProduced));
@@ -687,7 +808,7 @@ namespace XTSPrimeMoverProject.ViewModels
             }
         }
 
-        private void Reset()
+        private async void Reset()
         {
             try
             {
@@ -700,10 +821,10 @@ namespace XTSPrimeMoverProject.ViewModels
                 PartHistorySummary = "No part selected.";
                 PartHistoryEvents.Clear();
                 ExecutionLogs.Clear();
-                RefreshWatchdogStatuses();
+                await RefreshWatchdogStatusesAsync().ConfigureAwait(true);
                 _machine.SetSimulationSpeed(_simulationSpeed);
-                LoadDbTables();
-                LoadOrchestrationSteps();
+                ReloadDbTablesAsync();
+                LoadOrchestrationStepsAsync();
             }
             catch (Exception ex)
             {

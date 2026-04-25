@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using XTSPrimeMoverProject.Models;
 
 namespace XTSPrimeMoverProject.Services
@@ -88,130 +90,144 @@ namespace XTSPrimeMoverProject.Services
             }
         }
 
-        public IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus()
+        public Task<IReadOnlyList<WatchdogStatusEntry>> GetWatchdogStatusAsync(CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetWatchdogStatus(),
                 "LocalGateway.GetWatchdogStatus",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<WatchdogStatusEntry>())!;
+                fallback: Array.Empty<WatchdogStatusEntry>())!);
         }
 
-        public IReadOnlyList<ProductionSequenceStep> GetOrchestrationSteps()
+        public Task<IReadOnlyList<ProductionSequenceStep>> GetOrchestrationStepsAsync(CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetOrchestrationSteps(),
                 "LocalGateway.GetOrchestrationSteps",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<ProductionSequenceStep>())!;
+                fallback: Array.Empty<ProductionSequenceStep>())!);
         }
 
-        public bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message)
+        public Task<OrchestrationApplyResult> ApplyOrchestrationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
-                return _engine.TryApplyOrchestration(stepDefinitions, out message);
+                bool success = _engine.TryApplyOrchestration(stepDefinitions, out string message);
+                return Task.FromResult(new OrchestrationApplyResult(success, message));
             }
             catch (Exception ex)
             {
                 _errorHandler.ReportException(ErrorCategory.Gateway, "LocalGateway.TryApplyOrchestration", ex);
-                message = $"Gateway error: {ex.Message}";
-                return false;
+                return Task.FromResult(new OrchestrationApplyResult(false, $"Gateway error: {ex.Message}"));
             }
         }
 
-        public IReadOnlyList<string> PreviewOrchestrationValidation(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions)
+        public Task<IReadOnlyList<string>> PreviewOrchestrationValidationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.PreviewOrchestrationValidation(stepDefinitions),
                 "LocalGateway.PreviewOrchestrationValidation",
                 ErrorCategory.Gateway,
-                fallback: new List<string> { "Validation unavailable due to gateway error." })!;
+                fallback: new List<string> { "Validation unavailable due to gateway error." })!);
         }
 
-        public IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses()
+        public Task<IReadOnlyList<SafetyGateStatus>> GetOrchestrationSafetyGateStatusesAsync(CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetOrchestrationSafetyGateStatuses(),
                 "LocalGateway.GetOrchestrationSafetyGateStatuses",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<SafetyGateStatus>())!;
+                fallback: Array.Empty<SafetyGateStatus>())!);
         }
 
         // --- IDataGatewayService ---
 
         public string DatabasePath => _engine.DatabasePath;
 
-        public IReadOnlyList<PartHistoryEventRecord> GetPartHistory(string trackingNumber)
+        public Task<IReadOnlyList<PartHistoryEventRecord>> GetPartHistoryAsync(string trackingNumber, CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetPartHistory(trackingNumber),
                 "LocalGateway.GetPartHistory",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<PartHistoryEventRecord>())!;
+                fallback: Array.Empty<PartHistoryEventRecord>())!);
         }
 
-        public PartSummaryRecord? GetPartSummary(string trackingNumber)
+        public Task<PartSummaryRecord?> GetPartSummaryAsync(string trackingNumber, CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetPartSummary(trackingNumber),
                 "LocalGateway.GetPartSummary",
                 ErrorCategory.Gateway,
-                fallback: null);
+                fallback: null));
         }
 
-        public IReadOnlyList<string> GetExportableTables()
+        public Task<IReadOnlyList<string>> GetExportableTablesAsync(CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetExportableTables(),
                 "LocalGateway.GetExportableTables",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<string>())!;
+                fallback: Array.Empty<string>())!);
         }
 
-        public IReadOnlyList<string> GetAllTables()
+        public Task<IReadOnlyList<string>> GetAllTablesAsync(CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetAllTables(),
                 "LocalGateway.GetAllTables",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<string>())!;
+                fallback: Array.Empty<string>())!);
         }
 
-        public IReadOnlyList<string> GetTableColumns(string tableName)
+        public Task<IReadOnlyList<string>> GetTableColumnsAsync(string tableName, CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetTableColumns(tableName),
                 "LocalGateway.GetTableColumns",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<string>())!;
+                fallback: Array.Empty<string>())!);
         }
 
-        public int GetTableRowCount(string tableName)
+        public Task<int> GetTableRowCountAsync(string tableName, CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetTableRowCount(tableName),
                 "LocalGateway.GetTableRowCount",
                 ErrorCategory.Gateway,
-                fallback: 0);
+                fallback: 0));
         }
 
-        public IReadOnlyList<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500)
+        public Task<IReadOnlyList<Dictionary<string, string>>> GetTableRowsAsync(string tableName, int maxRows = 500, CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.GetTableRows(tableName, maxRows),
                 "LocalGateway.GetTableRows",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<Dictionary<string, string>>())!;
+                fallback: Array.Empty<Dictionary<string, string>>())!);
         }
 
-        public string ExportTableToCsv(string tableName, string? exportDirectory = null)
+        public Task<string> ExportTableToCsvAsync(string tableName, string? exportDirectory = null, CancellationToken cancellationToken = default)
         {
-            return _errorHandler.ExecuteWithRetry(
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(_errorHandler.ExecuteWithRetry(
                 () => _engine.ExportTableToCsv(tableName, exportDirectory),
                 "LocalGateway.ExportTableToCsv",
                 ErrorCategory.Gateway,
-                fallback: string.Empty)!;
+                fallback: string.Empty)!);
         }
 
         public string GetDefaultExportDirectory() => _engine.GetDefaultExportDirectory();

@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using XTSPrimeMoverProject.Models;
 
 namespace XTSPrimeMoverProject.Services
 {
+    public sealed record OrchestrationApplyResult(bool Success, string Message);
+
     public interface IMachineGatewayService
     {
         event EventHandler? StateChanged;
@@ -27,26 +31,26 @@ namespace XTSPrimeMoverProject.Services
         void Reset();
         void SetSimulationSpeed(double speed);
 
-        IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus();
-        IReadOnlyList<ProductionSequenceStep> GetOrchestrationSteps();
-        bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message);
-        IReadOnlyList<string> PreviewOrchestrationValidation(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions);
-        IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses();
+        Task<IReadOnlyList<WatchdogStatusEntry>> GetWatchdogStatusAsync(CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<ProductionSequenceStep>> GetOrchestrationStepsAsync(CancellationToken cancellationToken = default);
+        Task<OrchestrationApplyResult> ApplyOrchestrationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<string>> PreviewOrchestrationValidationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<SafetyGateStatus>> GetOrchestrationSafetyGateStatusesAsync(CancellationToken cancellationToken = default);
     }
 
     public interface IDataGatewayService
     {
         string DatabasePath { get; }
 
-        IReadOnlyList<PartHistoryEventRecord> GetPartHistory(string trackingNumber);
-        PartSummaryRecord? GetPartSummary(string trackingNumber);
+        Task<IReadOnlyList<PartHistoryEventRecord>> GetPartHistoryAsync(string trackingNumber, CancellationToken cancellationToken = default);
+        Task<PartSummaryRecord?> GetPartSummaryAsync(string trackingNumber, CancellationToken cancellationToken = default);
 
-        IReadOnlyList<string> GetExportableTables();
-        IReadOnlyList<string> GetAllTables();
-        IReadOnlyList<string> GetTableColumns(string tableName);
-        int GetTableRowCount(string tableName);
-        IReadOnlyList<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500);
-        string ExportTableToCsv(string tableName, string? exportDirectory = null);
+        Task<IReadOnlyList<string>> GetExportableTablesAsync(CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<string>> GetAllTablesAsync(CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<string>> GetTableColumnsAsync(string tableName, CancellationToken cancellationToken = default);
+        Task<int> GetTableRowCountAsync(string tableName, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<Dictionary<string, string>>> GetTableRowsAsync(string tableName, int maxRows = 500, CancellationToken cancellationToken = default);
+        Task<string> ExportTableToCsvAsync(string tableName, string? exportDirectory = null, CancellationToken cancellationToken = default);
         string GetDefaultExportDirectory();
     }
 }
