@@ -257,6 +257,56 @@ namespace XTSPrimeMoverProject.Services
             return fallback;
         }
 
+        public async System.Threading.Tasks.Task<T?> ExecuteWithRetryAsync<T>(
+            Func<System.Threading.Tasks.Task<T>> func,
+            string operationName,
+            ErrorCategory category,
+            T? fallback = default,
+            int maxRetries = 3,
+            int baseDelayMs = 50)
+        {
+            var breaker = GetOrCreateCircuitBreaker(operationName);
+            if (!breaker.AllowAttempt())
+            {
+                ReportError(
+                    ErrorSeverity.Warning,
+                    category,
+                    operationName,
+                    $"Circuit breaker open for '{operationName}'. Returning fallback.",
+                    wasRecovered: false);
+                return fallback;
+            }
+
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    T result = await func().ConfigureAwait(false);
+                    breaker.RecordSuccess();
+                    return result;
+                }
+                catch (Exception ex) when (attempt < maxRetries && IsTransient(ex))
+                {
+                    int delay = baseDelayMs * (int)Math.Pow(2, attempt);
+                    await System.Threading.Tasks.Task.Delay(delay).ConfigureAwait(false);
+                    ReportError(
+                        ErrorSeverity.Warning,
+                        category,
+                        operationName,
+                        $"Retry {attempt + 1}/{maxRetries}: {ex.Message}",
+                        wasRecovered: true);
+                }
+                catch (Exception ex)
+                {
+                    breaker.RecordFailure();
+                    ReportException(category, operationName, ex, wasRecovered: false);
+                    return fallback;
+                }
+            }
+
+            return fallback;
+        }
+
         public IReadOnlyList<ErrorRecord> GetRecentErrors(int count = 50)
         {
             return _errorLog

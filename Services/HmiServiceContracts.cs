@@ -4,10 +4,21 @@ using XTSPrimeMoverProject.Models;
 
 namespace XTSPrimeMoverProject.Services
 {
+    public enum GatewayConnectionState
+    {
+        Connected,
+        Degraded,
+        Reconnecting,
+        Offline
+    }
+
     public interface IMachineGatewayService
     {
         event EventHandler? StateChanged;
         event EventHandler<string>? LogGenerated;
+        event EventHandler<GatewayConnectionState>? ConnectionStateChanged;
+
+        GatewayConnectionState ConnectionState { get; }
 
         IReadOnlyList<Mover> Movers { get; }
         IReadOnlyList<Machine> Machines { get; }
@@ -29,24 +40,24 @@ namespace XTSPrimeMoverProject.Services
 
         IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus();
         IReadOnlyList<ProductionSequenceStep> GetOrchestrationSteps();
-        bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message);
-        IReadOnlyList<string> PreviewOrchestrationValidation(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions);
-        IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses();
+        Task<(bool Success, string Message)> TryApplyOrchestrationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions);
+        Task<IReadOnlyList<string>> PreviewOrchestrationValidationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions);
+        Task<IReadOnlyList<SafetyGateStatus>> GetOrchestrationSafetyGateStatusesAsync();
     }
 
     public interface IDataGatewayService
     {
         string DatabasePath { get; }
 
-        IReadOnlyList<PartHistoryEventRecord> GetPartHistory(string trackingNumber);
-        PartSummaryRecord? GetPartSummary(string trackingNumber);
+        Task<IReadOnlyList<PartHistoryEventRecord>> GetPartHistoryAsync(string trackingNumber);
+        Task<PartSummaryRecord?> GetPartSummaryAsync(string trackingNumber);
 
-        IReadOnlyList<string> GetExportableTables();
-        IReadOnlyList<string> GetAllTables();
-        IReadOnlyList<string> GetTableColumns(string tableName);
-        int GetTableRowCount(string tableName);
-        IReadOnlyList<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500);
-        string ExportTableToCsv(string tableName, string? exportDirectory = null);
-        string GetDefaultExportDirectory();
+        Task<IReadOnlyList<string>> GetExportableTablesAsync();
+        Task<IReadOnlyList<string>> GetAllTablesAsync();
+        Task<IReadOnlyList<string>> GetTableColumnsAsync(string tableName);
+        Task<int> GetTableRowCountAsync(string tableName);
+        Task<IReadOnlyList<Dictionary<string, string>>> GetTableRowsAsync(string tableName, int maxRows = 500);
+        Task<string> ExportTableToCsvAsync(string tableName, string? exportDirectory = null);
+        Task<string> GetDefaultExportDirectoryAsync();
     }
 }

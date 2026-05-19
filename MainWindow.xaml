@@ -1309,7 +1309,18 @@
                                         <TextBlock Text="{Binding GoodPartsCount, Mode=OneWay, StringFormat='Good Parts: {0}'}" Style="{StaticResource StatusTextStyle}"/>
                                         <TextBlock Text="{Binding BadPartsCount, Mode=OneWay, StringFormat='Bad Parts: {0}'}" Style="{StaticResource StatusTextStyle}"/>
                                         <TextBlock Text="{Binding YieldPercentage, Mode=OneWay, StringFormat='Yield: {0:F1}%'}" Style="{StaticResource StatusTextStyle}"/>
-                                        <TextBlock Text="{Binding GatewayModeStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" FontWeight="SemiBold" Margin="5,4,5,0" TextWrapping="Wrap"/>
+
+                                        <StackPanel Orientation="Horizontal" Margin="5,4,5,0">
+                                            <TextBlock Text="{Binding GatewayModeStatus, Mode=OneWay}" Foreground="#9CDCFE" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,5,0" />
+                                            <Ellipse Width="8" Height="8" Fill="{Binding GatewayModeIndicatorColor}" VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Margin="5,4,5,0">
+                                            <TextBlock Text="Connection: " Foreground="#AAAAAA" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding ConnectionState, Mode=OneWay}" Foreground="{Binding ConnectionStateColor, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,5,0" />
+                                            <Ellipse Width="8" Height="8" Fill="{Binding ConnectionStateColor}" VerticalAlignment="Center" />
+                                        </StackPanel>
+
                                         <TextBlock Text="{Binding DatabasePath, Mode=OneWay, StringFormat='DB: {0}'}" Foreground="#AAAAAA" FontSize="10" Margin="5,4,5,0" TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>

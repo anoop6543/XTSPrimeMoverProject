@@ -31,6 +31,13 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 
         public event EventHandler? StateChanged;
         public event EventHandler<string>? LogGenerated;
+        public event EventHandler<GatewayConnectionState>? ConnectionStateChanged
+        {
+            add => _inner.ConnectionStateChanged += value;
+            remove => _inner.ConnectionStateChanged -= value;
+        }
+
+        public GatewayConnectionState ConnectionState => _inner.ConnectionState;
 
         public IReadOnlyList<Mover> Movers => _inner.Movers;
         public IReadOnlyList<Machine> Machines => _inner.Machines;
@@ -83,37 +90,47 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
                 fallback: Array.Empty<ProductionSequenceStep>())!;
         }
 
-        public bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message)
+        public async Task<(bool Success, string Message)> TryApplyOrchestrationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions)
         {
             try
             {
-                SimulateNetworkLatencySync();
-                return _inner.TryApplyOrchestration(stepDefinitions, out message);
+                if (_commandLatencyMs > 0)
+                {
+                    await Task.Delay(_commandLatencyMs).ConfigureAwait(false);
+                }
+                return await _inner.TryApplyOrchestrationAsync(stepDefinitions).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.TryApplyOrchestration", ex);
-                message = $"Remote gateway error: {ex.Message}";
-                return false;
+                return (false, $"Remote gateway error: {ex.Message}");
             }
         }
 
-        public IReadOnlyList<string> PreviewOrchestrationValidation(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions)
+        public async Task<IReadOnlyList<string>> PreviewOrchestrationValidationAsync(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions)
         {
-            return _errorHandler.ExecuteWithRetry(
-                () => _inner.PreviewOrchestrationValidation(stepDefinitions),
+            if (_commandLatencyMs > 0)
+            {
+                await Task.Delay(_commandLatencyMs).ConfigureAwait(false);
+            }
+            return await _errorHandler.ExecuteWithRetryAsync(
+                async () => await _inner.PreviewOrchestrationValidationAsync(stepDefinitions),
                 "RemoteMock.PreviewOrchestrationValidation",
                 ErrorCategory.Gateway,
-                fallback: new List<string> { "Validation unavailable due to remote gateway error." })!;
+                fallback: new List<string> { "Validation unavailable due to remote gateway error." }).ConfigureAwait(false) ?? new List<string>();
         }
 
-        public IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses()
+        public async Task<IReadOnlyList<SafetyGateStatus>> GetOrchestrationSafetyGateStatusesAsync()
         {
-            return _errorHandler.ExecuteWithRetry(
-                () => _inner.GetOrchestrationSafetyGateStatuses(),
+            if (_commandLatencyMs > 0)
+            {
+                await Task.Delay(_commandLatencyMs).ConfigureAwait(false);
+            }
+            return await _errorHandler.ExecuteWithRetryAsync(
+                async () => await _inner.GetOrchestrationSafetyGateStatusesAsync(),
                 "RemoteMock.GetOrchestrationSafetyGateStatuses",
                 ErrorCategory.Gateway,
-                fallback: Array.Empty<SafetyGateStatus>())!;
+                fallback: (IReadOnlyList<SafetyGateStatus>)Array.Empty<SafetyGateStatus>()).ConfigureAwait(false) ?? Array.Empty<SafetyGateStatus>();
         }
 
         private void DispatchWithLatency(Action command)
