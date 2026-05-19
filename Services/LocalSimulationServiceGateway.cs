@@ -12,7 +12,7 @@ namespace XTSPrimeMoverProject.Services
     /// All calls are wrapped with error handling to prevent unhandled exceptions
     /// from propagating to the ViewModel/UI layer.
     /// </summary>
-    public sealed class LocalSimulationServiceGateway : IMachineGatewayService, IDataGatewayService
+    public sealed class LocalSimulationServiceGateway : IMachineGatewayService
     {
         private readonly XTSSimulationEngine _engine;
         private readonly ErrorHandlingService _errorHandler = ErrorHandlingService.Instance;
@@ -152,92 +152,6 @@ namespace XTSPrimeMoverProject.Services
                 ErrorCategory.Gateway,
                 fallback: Array.Empty<SafetyGateStatus>())!);
         }
-
-        // --- IDataGatewayService ---
-
-        public string DatabasePath => _engine.DatabasePath;
-
-        public Task<IReadOnlyList<PartHistoryEventRecord>> GetPartHistoryAsync(string trackingNumber, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.GetPartHistory(trackingNumber),
-                "LocalGateway.GetPartHistory",
-                ErrorCategory.Gateway,
-                fallback: Array.Empty<PartHistoryEventRecord>())!);
-        }
-
-        public Task<PartSummaryRecord?> GetPartSummaryAsync(string trackingNumber, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.GetPartSummary(trackingNumber),
-                "LocalGateway.GetPartSummary",
-                ErrorCategory.Gateway,
-                fallback: null));
-        }
-
-        public Task<IReadOnlyList<string>> GetExportableTablesAsync(CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.GetExportableTables(),
-                "LocalGateway.GetExportableTables",
-                ErrorCategory.Gateway,
-                fallback: Array.Empty<string>())!);
-        }
-
-        public Task<IReadOnlyList<string>> GetAllTablesAsync(CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.GetAllTables(),
-                "LocalGateway.GetAllTables",
-                ErrorCategory.Gateway,
-                fallback: Array.Empty<string>())!);
-        }
-
-        public Task<IReadOnlyList<string>> GetTableColumnsAsync(string tableName, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.GetTableColumns(tableName),
-                "LocalGateway.GetTableColumns",
-                ErrorCategory.Gateway,
-                fallback: Array.Empty<string>())!);
-        }
-
-        public Task<int> GetTableRowCountAsync(string tableName, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.GetTableRowCount(tableName),
-                "LocalGateway.GetTableRowCount",
-                ErrorCategory.Gateway,
-                fallback: 0));
-        }
-
-        public Task<IReadOnlyList<Dictionary<string, string>>> GetTableRowsAsync(string tableName, int maxRows = 500, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.GetTableRows(tableName, maxRows),
-                "LocalGateway.GetTableRows",
-                ErrorCategory.Gateway,
-                fallback: Array.Empty<Dictionary<string, string>>())!);
-        }
-
-        public Task<string> ExportTableToCsvAsync(string tableName, string? exportDirectory = null, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return Task.FromResult(_errorHandler.ExecuteWithRetry(
-                () => _engine.ExportTableToCsv(tableName, exportDirectory),
-                "LocalGateway.ExportTableToCsv",
-                ErrorCategory.Gateway,
-                fallback: string.Empty)!);
-        }
-
-        public string GetDefaultExportDirectory() => _engine.GetDefaultExportDirectory();
 
         // --- Event forwarding ---
 

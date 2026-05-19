@@ -45,6 +45,7 @@ namespace XTSPrimeMoverProject
                     : configuredMode.Trim();
 
                 Services.IMachineGatewayService machineGateway;
+                Services.IDataGatewayService dataGateway = new Services.LocalSimulationDataGateway(engine.DataLogger);
                 string gatewayModeStatus;
 
                 if (string.Equals(normalizedMode, "RemoteHttp", StringComparison.OrdinalIgnoreCase))
@@ -63,7 +64,6 @@ namespace XTSPrimeMoverProject
                     gatewayModeStatus = "Machine Gateway: Local In-Process";
                 }
 
-                var dataGateway = (Services.IDataGatewayService)localGateway;
                 var viewModel = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
                 DataContext = viewModel;
 

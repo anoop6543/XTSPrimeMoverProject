@@ -330,11 +330,25 @@ Use this section as the working checklist for the remaining split-runtime work. 
   - `MainWindow()`
 
 #### Tasks
-- [ ] Separate data gateway composition from machine gateway composition in `MainWindow()`.
-- [ ] Reduce or remove the engine façade methods that only forward data access.
-- [ ] Introduce a standalone local data gateway over `SimulationDataLogger`.
-- [ ] Preserve `IDataGatewayService` contract stability so local and future remote data services stay swappable.
-- [ ] Keep SQLite-backed local behavior as the default fallback path.
+- [x] Separate data gateway composition from machine gateway composition in `MainWindow()`.
+- [x] Reduce or remove the engine façade methods that only forward data access.
+- [x] Introduce a standalone local data gateway over `SimulationDataLogger`.
+- [x] Preserve `IDataGatewayService` contract stability so local and future remote data services stay swappable.
+- [x] Keep SQLite-backed local behavior as the default fallback path.
+
+#### Phase C2 status
+- Status: Completed
+- Implemented in:
+  - `Services/LocalSimulationDataGateway.cs`
+  - `Services/XTSSimulationEngine.cs`
+  - `Services/LocalSimulationServiceGateway.cs`
+  - `MainWindow.xaml.cs`
+- Notes:
+  - Added `LocalSimulationDataGateway` as the dedicated `IDataGatewayService` implementation over `SimulationDataLogger`.
+  - `MainWindow` now composes machine and data gateways independently instead of obtaining data access through the machine gateway.
+  - `XTSSimulationEngine` now exposes `SimulationDataLogger` for composition support and no longer serves as the UI-facing façade for history/table/export reads.
+  - `LocalSimulationServiceGateway` is now machine-only and remains the in-process `IMachineGatewayService` fallback.
+  - SQLite remains the active local persistence implementation in this branch.
 
 ---
 

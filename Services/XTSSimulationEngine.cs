@@ -59,6 +59,7 @@ namespace XTSPrimeMoverProject.Services
         public bool IsRunning { get; private set; }
         public int TotalStationCount { get; private set; }
         public string DatabasePath => _dataLogger.DatabasePath;
+        public SimulationDataLogger DataLogger => _dataLogger;
         public bool EntryZoneBlink => _entryZoneBlinkRemaining > 0;
         public bool ExitZoneBlink => _exitZoneBlinkRemaining > 0;
 
@@ -100,16 +101,6 @@ namespace XTSPrimeMoverProject.Services
 
             _timer = new System.Threading.Timer(OnTimerTick, null, Timeout.Infinite, Timeout.Infinite);
         }
-
-        public IReadOnlyList<PartHistoryEventRecord> GetPartHistory(string trackingNumber) => _dataLogger.GetPartHistory(trackingNumber);
-        public PartSummaryRecord? GetPartSummary(string trackingNumber) => _dataLogger.GetPartSummary(trackingNumber);
-        public IReadOnlyList<string> GetExportableTables() => _dataLogger.GetExportableTables();
-        public IReadOnlyList<string> GetAllTables() => _dataLogger.GetAllTables();
-        public IReadOnlyList<string> GetTableColumns(string tableName) => _dataLogger.GetTableColumns(tableName);
-        public int GetTableRowCount(string tableName) => _dataLogger.GetTableRowCount(tableName);
-        public IReadOnlyList<Dictionary<string, string>> GetTableRows(string tableName, int maxRows = 500) => _dataLogger.GetTableRows(tableName, maxRows);
-        public string ExportTableToCsv(string tableName, string? exportDirectory = null) => _dataLogger.ExportTableToCsv(tableName, exportDirectory);
-        public string GetDefaultExportDirectory() => System.IO.Path.Combine(AppContext.BaseDirectory, "Exports");
 
         public IReadOnlyList<WatchdogStatusEntry> GetWatchdogStatus()
         {
