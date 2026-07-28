@@ -1,0 +1,5 @@
+machine:
+  id: 3
+  name: FunctionalTesting
+  type: FunctionalTesting
+  loadAngle: 315

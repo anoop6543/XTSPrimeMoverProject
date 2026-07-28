@@ -22,29 +22,62 @@ namespace XTSPrimeMoverProject
     public partial class MainWindow : Window
     {
         private Services.XTSSimulationEngine? _engine;
+        private Services.RemoteRestGateway? _remoteGateway;
 
+        /// <summary>
+        /// Gateway mode is selected by the environment variable XTS_GATEWAY_MODE:
+        ///   "local"       — in-process engine (original behaviour, default)
+        ///   "remote-mock" — local engine wrapped in RemoteTwinCatMachineGatewayMock (adds latency)
+        ///   "remote"      — connects to the Temporal/K8s Prime Mover API via REST + SignalR
+        /// The URL for remote mode is read from XTS_PRIME_MOVER_API_URL or defaults to http://localhost:8082.
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
 
             try
             {
-                var engine = new Services.XTSSimulationEngine();
-                _engine = engine;
-                var localGateway = new Services.LocalSimulationServiceGateway(engine);
+                string gatewayMode = ReadAppStringSetting("GatewayMode",
+                    Environment.GetEnvironmentVariable("XTS_GATEWAY_MODE") ?? "local");
 
-                bool useRemoteMock = ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
-                int latencyMs = ReadAppIntSetting("RemoteTwinCatMachineGatewayMockLatencyMs", defaultValue: 40);
+                Services.IMachineGatewayService machineGateway;
+                Services.IDataGatewayService dataGateway;
+                string gatewayModeStatus;
 
-                Services.IMachineGatewayService machineGateway = useRemoteMock
-                    ? new RemoteTwinCatMachineGatewayMock(localGateway, commandLatencyMs: latencyMs)
-                    : localGateway;
+                if (gatewayMode.Equals("remote", StringComparison.OrdinalIgnoreCase))
+                {
+                    // ── Remote mode: WPF becomes a thick REST/SignalR client ──────────
+                    string apiUrl = ReadAppStringSetting("PrimeMoverApiUrl",
+                        Environment.GetEnvironmentVariable("XTS_PRIME_MOVER_API_URL") ?? "http://localhost:8082");
 
-                string gatewayModeStatus = useRemoteMock
-                    ? $"Machine Gateway: Remote TwinCAT Mock ({latencyMs} ms)"
-                    : "Machine Gateway: Local In-Process";
+                    var remoteGateway = new Services.RemoteRestGateway(apiUrl);
+                    _remoteGateway = remoteGateway;
+                    machineGateway = remoteGateway;
+                    dataGateway = remoteGateway;
+                    gatewayModeStatus = $"Machine Gateway: Remote Temporal/K8s — {apiUrl}";
+                }
+                else
+                {
+                    // ── Local mode: in-process engine (original behaviour) ────────────
+                    var engine = new Services.XTSSimulationEngine();
+                    _engine = engine;
+                    var localGateway = new Services.LocalSimulationServiceGateway(engine);
 
-                var dataGateway = (Services.IDataGatewayService)localGateway;
+                    bool useRemoteMock = gatewayMode.Equals("remote-mock", StringComparison.OrdinalIgnoreCase)
+                        || ReadAppBoolSetting("UseRemoteTwinCatMachineGatewayMock", defaultValue: true);
+                    int latencyMs = ReadAppIntSetting("RemoteTwinCatMachineGatewayMockLatencyMs", defaultValue: 40);
+
+                    machineGateway = useRemoteMock
+                        ? new RemoteTwinCatMachineGatewayMock(localGateway, commandLatencyMs: latencyMs)
+                        : localGateway;
+
+                    gatewayModeStatus = useRemoteMock
+                        ? $"Machine Gateway: Remote TwinCAT Mock ({latencyMs} ms)"
+                        : "Machine Gateway: Local In-Process";
+
+                    dataGateway = localGateway;
+                }
+
                 var viewModel = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
                 DataContext = viewModel;
 
@@ -70,6 +103,8 @@ namespace XTSPrimeMoverProject
         {
             _engine?.Dispose();
             _engine = null;
+            _remoteGateway?.Dispose();
+            _remoteGateway = null;
         }
 
         private void OnExecutionLogsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -99,6 +134,16 @@ namespace XTSPrimeMoverProject
         private static int ReadAppIntSetting(string key, int defaultValue)
         {
             if (Application.Current?.Resources[key] is int value)
+            {
+                return value;
+            }
+
+            return defaultValue;
+        }
+
+        private static string ReadAppStringSetting(string key, string defaultValue)
+        {
+            if (Application.Current?.Resources[key] is string value && !string.IsNullOrEmpty(value))
             {
                 return value;
             }

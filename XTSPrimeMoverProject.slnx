@@ -1,3 +1,19 @@
 <Solution>
+  <!-- Original WPF desktop application -->
   <Project Path="XTSPrimeMoverProject.csproj" />
+
+  <!-- Shared contracts (DTOs, gRPC protos, Temporal workflow interfaces) -->
+  <Project Path="src/shared/Contracts/XtsContracts.csproj" />
+
+  <!-- Temporal workers -->
+  <Project Path="src/temporal/master-worker/MasterWorker.csproj" />
+  <Project Path="src/temporal/machine-worker/MachineWorker.csproj" />
+
+  <!-- Machine microservice pods -->
+  <Project Path="src/machines/MachineService/MachineService.csproj" />
+  <Project Path="src/machines/MachineApi/MachineApi.csproj" />
+
+  <!-- Prime Mover microservice pods -->
+  <Project Path="src/prime-mover/PrimeMoverService/PrimeMoverService.csproj" />
+  <Project Path="src/prime-mover/PrimeMoverApi/PrimeMoverApi.csproj" />
 </Solution>

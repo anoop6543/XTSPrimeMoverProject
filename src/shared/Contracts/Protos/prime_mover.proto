@@ -1,0 +1,67 @@
+syntax = "proto3";
+option csharp_namespace = "XtsContracts.Grpc";
+
+package prime_mover;
+
+service PrimeMoverService {
+  rpc GetSystemStatus (SystemStatusRequest) returns (SystemStatusReply);
+  rpc StreamMoverPositions (SystemStatusRequest) returns (stream MoverPositionUpdate);
+  rpc SendCommand (SystemCommandRequest) returns (SystemCommandReply);
+  rpc NotifyMoverArrival (MoverArrivalNotification) returns (MoverArrivalReply);
+  rpc NotifyPartReady (PartReadyNotification) returns (PartReadyReply);
+}
+
+message SystemStatusRequest {}
+
+message SystemStatusReply {
+  bool is_running = 1;
+  int32 total_parts_produced = 2;
+  int32 good_parts = 3;
+  int32 bad_parts = 4;
+  repeated MoverStatus movers = 5;
+  int64 timestamp_utc_ms = 6;
+}
+
+message MoverStatus {
+  int32 mover_id = 1;
+  double position = 2;
+  double velocity = 3;
+  string state = 4;
+  string loaded_part_tracking = 5;
+}
+
+message MoverPositionUpdate {
+  repeated MoverStatus movers = 1;
+  int64 timestamp_utc_ms = 2;
+}
+
+message SystemCommandRequest {
+  string command = 1;  // "start", "stop", "reset"
+  double speed_factor = 2;
+}
+
+message SystemCommandReply {
+  bool success = 1;
+  string message = 2;
+}
+
+message MoverArrivalNotification {
+  int32 mover_id = 1;
+  int32 machine_id = 2;
+  string part_tracking = 3;
+}
+
+message MoverArrivalReply {
+  bool accepted = 1;
+}
+
+message PartReadyNotification {
+  int32 machine_id = 1;
+  string part_tracking = 2;
+  bool has_defect = 3;
+  string part_status = 4;
+}
+
+message PartReadyReply {
+  bool acknowledged = 1;
+}

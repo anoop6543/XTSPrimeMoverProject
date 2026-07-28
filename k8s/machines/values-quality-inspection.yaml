@@ -1,0 +1,5 @@
+machine:
+  id: 2
+  name: QualityInspection
+  type: QualityInspection
+  loadAngle: 225

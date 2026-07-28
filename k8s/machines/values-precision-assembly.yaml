@@ -1,0 +1,5 @@
+machine:
+  id: 1
+  name: PrecisionAssembly
+  type: PrecisionAssembly
+  loadAngle: 135
