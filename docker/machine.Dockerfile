@@ -29,7 +29,7 @@ COPY src/machines/MachineApi/ /build/machines/MachineApi/
 WORKDIR /build/machines/MachineApi
 RUN dotnet restore && dotnet publish -c Release -o /publish
 WORKDIR /app
-COPY --from=0 /publish .
+COPY --from=build /publish .
 ENV ASPNETCORE_URLS=http://+:8081
 EXPOSE 8081
 ENTRYPOINT ["dotnet", "MachineApi.dll"]
