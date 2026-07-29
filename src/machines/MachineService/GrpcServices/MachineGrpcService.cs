@@ -41,6 +41,39 @@ public class MachineGrpcService : XtsContracts.Grpc.MachineService.MachineServic
         return Task.FromResult(new ResetMachineReply { Success = true });
     }
 
+    public override Task<UnloadPartReply> UnloadPart(UnloadPartRequest request, ServerCallContext context)
+    {
+        var part = _engine.UnloadPart();
+        if (part == null)
+        {
+            return Task.FromResult(new UnloadPartReply
+            {
+                Success = false,
+                PartId = string.Empty,
+                TrackingNumber = string.Empty,
+                HasDefect = false,
+                PartStatus = string.Empty
+            });
+        }
+
+        string finalStatus = part.HasDefect ? "Defect" : "Processed";
+        return Task.FromResult(new UnloadPartReply
+        {
+            Success = true,
+            PartId = part.PartId,
+            TrackingNumber = part.TrackingNumber,
+            HasDefect = part.HasDefect,
+            PartStatus = finalStatus
+        });
+    }
+
+    public override Task<AcknowledgeFaultReply> AcknowledgeFault(AcknowledgeFaultRequest request, ServerCallContext context)
+    {
+        _engine.ResetFault();
+        _logger.LogInformation("Fault acknowledged on Machine {MachineId}", request.MachineId);
+        return Task.FromResult(new AcknowledgeFaultReply { Success = true });
+    }
+
     private MachineStatusReply BuildReply()
     {
         var reply = new MachineStatusReply

@@ -24,12 +24,22 @@ public class MachineStatusBroadcaster : BackgroundService
     private readonly IHubContext<MachineHub> _hub;
     private readonly IHttpClientFactory _factory;
     private readonly ILogger<MachineStatusBroadcaster> _logger;
+    private readonly int _machineId;
 
-    public MachineStatusBroadcaster(IHubContext<MachineHub> hub, IHttpClientFactory factory, ILogger<MachineStatusBroadcaster> logger)
+    public MachineStatusBroadcaster(IHubContext<MachineHub> hub, IHttpClientFactory factory, ILogger<MachineStatusBroadcaster> logger, IConfiguration configuration)
     {
         _hub = hub;
         _factory = factory;
         _logger = logger;
+
+        // Require an explicit Machine:Id configuration so we never silently broadcast as machine 0
+        // when the environment variable was simply forgotten.
+        if (configuration["Machine:Id"] is null)
+        {
+            _logger.LogWarning(
+                "Machine:Id is not configured — defaulting to 0. Set Machine__Id environment variable to the correct machine ID.");
+        }
+        _machineId = configuration.GetValue("Machine:Id", 0);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -40,16 +50,15 @@ public class MachineStatusBroadcaster : BackgroundService
         {
             try
             {
-                var machineId = 0; // set from config in real deployment
-                var status = await client.GetFromJsonAsync<MachineDto>($"/api/machine/{machineId}/status", stoppingToken);
+                var status = await client.GetFromJsonAsync<MachineDto>($"/api/machine/{_machineId}/status", stoppingToken);
                 if (status != null)
                 {
-                    await _hub.Clients.Group($"machine-{machineId}").SendAsync("MachineStatusUpdate", status, stoppingToken);
+                    await _hub.Clients.Group($"machine-{_machineId}").SendAsync("MachineStatusUpdate", status, stoppingToken);
                 }
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogWarning("Status broadcast error: {Error}", ex.Message);
+                _logger.LogWarning("Status broadcast error for Machine {MachineId}: {Error}", _machineId, ex.Message);
             }
 
             await Task.Delay(100, stoppingToken);

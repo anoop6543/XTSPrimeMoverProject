@@ -13,6 +13,7 @@ builder.Services.AddSingleton<MachinePlcEngine>(sp =>
 builder.Services.AddSingleton<MachineService.MachineCompletionTracker>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -21,4 +22,5 @@ app.UseHttpMetrics();
 app.MapGrpcService<MachineGrpcService>();
 app.MapControllers();
 app.MapMetrics("/metrics");
+app.MapHealthChecks("/health");
 app.Run();

@@ -33,6 +33,7 @@ public class TrackController : ControllerBase
         IsRunning = _engine.IsRunning,
         TotalParts = _engine.TotalParts,
         GoodParts = _engine.GoodParts,
-        BadParts = _engine.BadParts
+        BadParts = _engine.BadParts,
+        Entered = _engine.Entered
     });
 }

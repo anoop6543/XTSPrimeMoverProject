@@ -41,6 +41,53 @@ public class XtsTrackEngine
     public void Stop() { lock (_lock) _running = false; }
     public void SetSpeed(double factor) { lock (_lock) _speedFactor = factor; }
 
+    /// <summary>
+    /// Called by the machine gRPC service when a mover has arrived at the machine's load angle.
+    /// Updates the mover state to AtMachine so the machine service knows it can load the part.
+    /// </summary>
+    public void NotifyMoverArrivalAtMachine(int moverId, int machineId)
+    {
+        lock (_lock)
+        {
+            var mover = _movers.FirstOrDefault(m => m.Id == moverId);
+            if (mover != null)
+                mover.State = TrackMoverState.AtMachine;
+        }
+    }
+
+    /// <summary>
+    /// Called by the machine gRPC service when a part has finished processing and is ready
+    /// for pickup. Marks the nearest available idle mover to head to this machine's angle.
+    /// </summary>
+    public void NotifyPartReadyForPickup(int machineId, string partTracking)
+    {
+        if (machineId < 0 || machineId >= MachineAngles.Length)
+        {
+            // Reject invalid machine IDs explicitly so callers can detect misconfiguration
+            Console.Error.WriteLine(
+                $"[XtsTrackEngine] NotifyPartReadyForPickup: machineId={machineId} is out of range (0..{MachineAngles.Length - 1}). Request ignored.");
+            return;
+        }
+
+        lock (_lock)
+        {
+            // Find a free mover that is not currently assigned to any machine
+            var candidate = _movers
+                .Where(m => m.State == TrackMoverState.Moving && m.CurrentPart == null && m.TargetMachineIndex < 0)
+                .OrderBy(m => AngularDistance(m.Position, MachineAngles[machineId]))
+                .FirstOrDefault();
+
+            if (candidate != null)
+                candidate.TargetMachineIndex = machineId;
+        }
+    }
+
+    private static double AngularDistance(double fromDeg, double toDeg)
+    {
+        double diff = (toDeg - fromDeg + 360.0) % 360.0;
+        return diff <= 180.0 ? diff : 360.0 - diff;
+    }
+
     public TrackTickResult Tick(double deltaSeconds)
     {
         lock (_lock)

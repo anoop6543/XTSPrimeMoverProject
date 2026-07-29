@@ -68,3 +68,42 @@ public class SystemController : ControllerBase
         return Ok(new { success = true });
     }
 }
+
+/// <summary>
+/// Proxy controller that forwards track-engine tick calls from the Temporal master-worker
+/// to PrimeMoverService running in the same pod. The master-worker only holds the
+/// PrimeMoverApi base URL, so tick requests arrive here and are forwarded over the
+/// pod-local loopback to the track engine.
+/// </summary>
+[ApiController]
+[Route("api/track")]
+public class TrackProxyController : ControllerBase
+{
+    private readonly IHttpClientFactory _factory;
+
+    public TrackProxyController(IHttpClientFactory factory) => _factory = factory;
+
+    /// <summary>Advance the XTS track engine by one simulation step.</summary>
+    [HttpPost("tick")]
+    public async Task<IActionResult> Tick([FromQuery] double speedFactor = 1.0)
+    {
+        var client = _factory.CreateClient("PrimeMoverService");
+        var response = await client.PostAsync($"/api/track/tick?speedFactor={speedFactor:F4}", null);
+        if (!response.IsSuccessStatusCode)
+            return StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+        var body = await response.Content.ReadAsStringAsync();
+        return Content(body, "application/json");
+    }
+
+    /// <summary>Get raw track status (complements /api/system/status).</summary>
+    [HttpGet("status")]
+    public async Task<IActionResult> Status()
+    {
+        var client = _factory.CreateClient("PrimeMoverService");
+        var response = await client.GetAsync("/api/track/status");
+        if (!response.IsSuccessStatusCode)
+            return StatusCode((int)response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        return Content(body, "application/json");
+    }
+}

@@ -55,4 +55,21 @@ public class PrimeMoverGrpcService : XtsContracts.Grpc.PrimeMoverService.PrimeMo
         }
         return Task.FromResult(new SystemCommandReply { Success = true, Message = $"Command '{request.Command}' executed" });
     }
+
+    public override Task<MoverArrivalReply> NotifyMoverArrival(MoverArrivalNotification request, ServerCallContext context)
+    {
+        // A mover has arrived at a machine station. The track engine acknowledges the arrival
+        // and updates the mover's state. In the distributed architecture the machine service
+        // sends this notification; in response the engine locks the mover at the station.
+        _engine.NotifyMoverArrivalAtMachine(request.MoverId, request.MachineId);
+        return Task.FromResult(new MoverArrivalReply { Accepted = true });
+    }
+
+    public override Task<PartReadyReply> NotifyPartReady(PartReadyNotification request, ServerCallContext context)
+    {
+        // A machine has finished processing a part and it is ready for pickup.
+        // The track engine schedules an available mover to go to that machine.
+        _engine.NotifyPartReadyForPickup(request.MachineId, request.PartTracking);
+        return Task.FromResult(new PartReadyReply { Acknowledged = true });
+    }
 }

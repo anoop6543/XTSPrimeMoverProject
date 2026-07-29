@@ -16,6 +16,13 @@ builder.Services.AddTemporalClient(opts =>
     opts.Namespace = "xts-system";
 });
 
+// Named HTTP client used by MachineActivities to call the MachineService REST API
+builder.Services.AddHttpClient("MachineService", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["MachineService:BaseUrl"] ?? "http://machine-service:8080");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
 builder.Services.AddHostedTemporalWorker($"xts-machine-{machineId}-queue")
     .AddWorkflow<MachineCycleWorkflow>()
     .AddScopedActivities<MachineActivities>();
