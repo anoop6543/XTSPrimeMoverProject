@@ -110,6 +110,9 @@ namespace XTSPrimeMoverProject.Services
 
         private ErrorHandlingService() { }
 
+        private DateTime _lastThrottleCleanup = DateTime.UtcNow;
+        private static readonly TimeSpan ThrottleCleanupInterval = TimeSpan.FromMinutes(1);
+
         public void ReportError(
             ErrorSeverity severity,
             ErrorCategory category,
@@ -118,18 +121,26 @@ namespace XTSPrimeMoverProject.Services
             string? detail = null,
             bool wasRecovered = false)
         {
+            DateTime now = DateTime.UtcNow;
+
+            if (now - _lastThrottleCleanup > ThrottleCleanupInterval)
+            {
+                CleanupThrottleTracker(now);
+                _lastThrottleCleanup = now;
+            }
+
             string throttleKey = $"{category}:{source}:{message}";
             if (_throttleTracker.TryGetValue(throttleKey, out DateTime lastReported)
-                && DateTime.UtcNow - lastReported < ThrottleWindow)
+                && now - lastReported < ThrottleWindow)
             {
                 return;
             }
 
-            _throttleTracker[throttleKey] = DateTime.UtcNow;
+            _throttleTracker[throttleKey] = now;
 
             var record = new ErrorRecord
             {
-                Timestamp = DateTime.UtcNow,
+                Timestamp = now,
                 Severity = severity,
                 Category = category,
                 Source = source,
@@ -146,6 +157,19 @@ namespace XTSPrimeMoverProject.Services
             }
 
             ErrorOccurred?.Invoke(this, record);
+        }
+
+        private void CleanupThrottleTracker(DateTime now)
+        {
+            var expiredKeys = _throttleTracker
+                .Where(kvp => now - kvp.Value > ThrottleWindow)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in expiredKeys)
+            {
+                _throttleTracker.TryRemove(key, out _);
+            }
         }
 
         public void ReportException(
