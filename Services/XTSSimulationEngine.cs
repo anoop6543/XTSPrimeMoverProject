@@ -677,7 +677,17 @@ namespace XTSPrimeMoverProject.Services
 
         private void SyncPartHistoryLogs()
         {
-            foreach (var part in GetActiveParts())
+            var activeParts = GetActiveParts().ToList();
+
+            // Cleanup part history log index to prevent memory leak
+            var activePartIds = new HashSet<Guid>(activeParts.Select(p => p.PartId));
+            var inactivePartIds = _partHistoryLogIndex.Keys.Where(id => !activePartIds.Contains(id)).ToList();
+            foreach (var id in inactivePartIds)
+            {
+                _partHistoryLogIndex.Remove(id);
+            }
+
+            foreach (var part in activeParts)
             {
                 if (!_partHistoryLogIndex.TryGetValue(part.PartId, out int loggedUntil))
                 {
