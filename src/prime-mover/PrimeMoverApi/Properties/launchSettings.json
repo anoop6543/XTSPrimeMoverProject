@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "PrimeMoverApi": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:64532;http://localhost:64535"
+    }
+  }
+}

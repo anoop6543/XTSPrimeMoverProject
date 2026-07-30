@@ -8,6 +8,7 @@
     <ProjectReference Include="../../shared/Contracts/XtsContracts.csproj" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.70.0" />
     <PackageReference Include="Npgsql" Version="9.0.4" />
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.12" />
     <PackageReference Include="MQTTnet" Version="4.3.7.1207" />
     <PackageReference Include="Prometheus-net.AspNetCore" Version="8.2.1" />
