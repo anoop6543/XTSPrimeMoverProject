@@ -121,7 +121,7 @@ Tables currently used:
 - `ErrorLogs`
 - `Alarms`
 
-## Build / Run
+## Build / Run (Desktop WPF Simulation)
 
 1. Open solution in Visual Studio 2026+.
 2. Restore/build (`Debug | Any CPU`).
@@ -131,6 +131,104 @@ Tables currently used:
    - `STOP`
    - `RESET`
    - Speed slider (`0.1x` .. `5.0x`)
+
+## Full-Stack Test Guide (Temporal + APIs + HMIs)
+
+This verifies the distributed stack end-to-end: infrastructure, orchestration, machine services, APIs, HMIs, and observability.
+
+### 1) Prerequisites
+
+- Docker Desktop or Docker Engine with Compose v2
+- At least 8 CPU cores / 16 GB RAM recommended
+- Ports available: `3000-3004`, `5432`, `6379`, `7233`, `8080`, `8082`, `8088`, `8090-8097`, `9200`, `9999`, `16686`
+
+### 2) Start the full stack
+
+From repository root:
+
+```bash
+cd docker
+docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.dev.yml ps
+```
+
+Expected: containers for Temporal, PostgreSQL, Redis, prime mover service/API/HMI, 4 machine service/API/HMI sets, workers, and observability are `Up`.
+
+### 3) Smoke-check core endpoints
+
+Open and confirm these load without errors:
+
+- Prime mover HMI: `http://localhost:3000`
+- Machine HMIs: `http://localhost:3001`, `3002`, `3003`, `3004`
+- Prime mover API Swagger: `http://localhost:8082/swagger`
+- Machine API Swagger examples: `http://localhost:8091/swagger`, `http://localhost:8093/swagger`
+- Temporal UI: `http://localhost:8088`
+- Prometheus: `http://localhost:9999`
+- Grafana: `http://localhost:3100` (`admin / xts_grafana`)
+- Jaeger: `http://localhost:16686`
+
+### 4) Functional end-to-end validation
+
+1. In Prime mover HMI, start production flow.
+2. Verify parts enter, route machine-by-machine (`M0 -> M1 -> M2 -> M3 -> Exit`), and exit as Good/Bad.
+3. Open each machine HMI and confirm live station progression + ET/PT style runtime changes.
+4. In Temporal UI:
+   - Confirm active workflow execution for prime mover orchestration.
+   - Confirm per-part lifecycle workflow creation and completion.
+   - Confirm machine workflow activity transitions while parts are processed.
+5. In APIs (Swagger), call read/status endpoints and verify responses update as runtime state changes.
+6. Validate alarms/watchdog behavior by observing fault and recovery events in HMIs/log streams (if a stall/fault is triggered).
+
+### 5) Data and observability validation
+
+- Verify metrics appear in Prometheus targets and queries.
+- Verify Grafana connects to Prometheus and dashboards update over time.
+- Verify traces/events are visible in Jaeger for workflow/service operations.
+- Verify database-backed runtime records continue updating while production runs.
+
+### 6) Pass/Fail checklist
+
+Pass when all are true:
+
+- All required containers stay healthy and do not crash-loop.
+- Prime mover + all machine HMIs load and show live-changing runtime state.
+- Temporal workflows are created, progress, and complete without repeated failure.
+- APIs remain responsive during active production.
+- Observability tools (Prometheus/Grafana/Jaeger) show current runtime signals.
+
+Fail if any service is unavailable, state is not progressing, or workflow retries/failures persist without recovery.
+
+### 7) Stop and clean up
+
+```bash
+cd docker
+docker compose -f docker-compose.dev.yml down
+```
+
+For full reset (including local volumes/data):
+
+```bash
+cd docker
+docker compose -f docker-compose.dev.yml down -v
+```
+
+## Demo Runbook for Larger Audience
+
+Use this sequence for team demos, leadership reviews, or stakeholder walkthroughs:
+
+1. **Context (2-3 min):** Explain architecture boundaries (machine runtime, HMI runtime, data/observability).
+2. **Live startup (2 min):** Show stack is already running (`docker compose ... ps`) and all major endpoints are reachable.
+3. **Production flow (5-7 min):** Start line in Prime mover HMI and narrate part journey from entry to exit.
+4. **Machine deep-dive (4-5 min):** Open one machine HMI and explain station-level ET/PT progression.
+5. **Orchestration proof (3-4 min):** Show Temporal workflows for prime mover + parts + machines.
+6. **Reliability proof (3-4 min):** Show alarms/watchdog/fault visibility and recovery behavior.
+7. **Observability proof (3-4 min):** Show Prometheus metrics, Grafana dashboard updates, and Jaeger traces.
+8. **Q&A ready artifacts:** Keep links/ports list, screenshots, and one short recording ready for follow-up sharing.
+
+Recommended presenter roles for larger crowd:
+- **Narrator:** explains business flow and success criteria.
+- **Operator:** drives HMI interactions.
+- **Observer:** watches Temporal/monitoring tabs and calls out evidence in real time.
 
 ## Continue Development on Another Laptop (Copilot-friendly)
 
