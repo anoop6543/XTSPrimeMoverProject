@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.Text;
@@ -78,7 +79,11 @@ namespace XTSPrimeMoverProject
                     dataGateway = localGateway;
                 }
 
-                var viewModel = new MainViewModel(machineGateway, dataGateway, gatewayModeStatus);
+                var viewModel = new MainViewModel(
+                    machineGateway,
+                    dataGateway,
+                    gatewayModeStatus,
+                    CreateEmbeddedWebHmiScreens());
                 DataContext = viewModel;
 
                 viewModel.ExecutionLogs.CollectionChanged += OnExecutionLogsCollectionChanged;
@@ -149,6 +154,45 @@ namespace XTSPrimeMoverProject
             }
 
             return defaultValue;
+        }
+
+        private static IReadOnlyList<EmbeddedWebHmiScreenViewModel> CreateEmbeddedWebHmiScreens()
+        {
+            var screens = new List<EmbeddedWebHmiScreenViewModel>();
+
+            AddWebHmiScreen(
+                screens,
+                "Prime Mover Web HMI",
+                "Embedded browser mirror of the prime mover web control room.",
+                ReadAppStringSetting(
+                    "PrimeMoverHmiUrl",
+                    Environment.GetEnvironmentVariable("XTS_PRIME_MOVER_HMI_URL") ?? "http://localhost:3000"));
+
+            for (int machineId = 0; machineId < 4; machineId++)
+            {
+                AddWebHmiScreen(
+                    screens,
+                    $"Machine M{machineId} Web HMI",
+                    $"Embedded browser mirror of the machine M{machineId} web HMI.",
+                    ReadAppStringSetting(
+                        $"Machine{machineId}HmiUrl",
+                        Environment.GetEnvironmentVariable($"XTS_MACHINE_{machineId}_HMI_URL")
+                            ?? $"http://localhost:{3001 + machineId}/?machineId={machineId}"));
+            }
+
+            return screens;
+        }
+
+        private static void AddWebHmiScreen(
+            ICollection<EmbeddedWebHmiScreenViewModel> screens,
+            string displayName,
+            string description,
+            string url)
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var sourceUri))
+            {
+                screens.Add(new EmbeddedWebHmiScreenViewModel(displayName, description, sourceUri));
+            }
         }
     }
 

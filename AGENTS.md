@@ -22,6 +22,7 @@ This file is the persistent repo-level handoff context for future Copilot sessio
 - Machine tab station cards enhanced with task-level visuals + tiny animated processing glyphs
 - Gateway mode indicator in HMI (Local vs Remote TwinCAT mock)
 - Auto-scrolling execution logger panel and speed control slider
+- Embedded WebView2 tab for prime mover and machine web HMIs
 
 ## Core Runtime Files
 - Engine: `Services/XTSSimulationEngine.cs`

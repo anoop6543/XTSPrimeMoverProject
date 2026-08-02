@@ -90,6 +90,7 @@ SQLite persistence for events/results/alarms/errors/snapshots.
 - robot canvas overlays with moving glyphs, animated dashed transfer lines, and direction arrowheads
 - entry/load and exit/unload zones + blinkers
 - right-side Line HMI diagnostics sections
+- embedded WebView2 launcher for prime mover + machine React HMIs
 - enhanced station cards on machine tabs with live task-centric visuals and activity glyph animations
 - bottom execution logger with auto-scroll to latest event
 

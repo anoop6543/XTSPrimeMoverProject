@@ -10,5 +10,12 @@
 
         <!-- Applied only when remote mock is enabled -->
         <sys:Int32 x:Key="RemoteTwinCatMachineGatewayMockLatencyMs">40</sys:Int32>
+
+        <!-- Embedded web HMI launch URLs (override with XTS_PRIME_MOVER_HMI_URL / XTS_MACHINE_{0-3}_HMI_URL env vars) -->
+        <sys:String x:Key="PrimeMoverHmiUrl">http://localhost:3000</sys:String>
+        <sys:String x:Key="Machine0HmiUrl">http://localhost:3001/?machineId=0</sys:String>
+        <sys:String x:Key="Machine1HmiUrl">http://localhost:3002/?machineId=1</sys:String>
+        <sys:String x:Key="Machine2HmiUrl">http://localhost:3003/?machineId=2</sys:String>
+        <sys:String x:Key="Machine3HmiUrl">http://localhost:3004/?machineId=3</sys:String>
     </Application.Resources>
 </Application>

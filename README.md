@@ -198,6 +198,21 @@ Pass when all are true:
 
 Fail if any service is unavailable, state is not progressing, or workflow retries/failures persist without recovery.
 
+## Embedded Web HMIs Inside WPF
+
+The desktop WPF HMI now includes an **Embedded Web HMIs** tab that hosts the existing React HMIs inside the desktop shell through WebView2.
+
+- Prime mover web HMI default: `http://localhost:3000`
+- Machine web HMI defaults: `http://localhost:3001` through `http://localhost:3004`
+- Override launch targets with environment variables:
+  - `XTS_PRIME_MOVER_HMI_URL`
+  - `XTS_MACHINE_0_HMI_URL`
+  - `XTS_MACHINE_1_HMI_URL`
+  - `XTS_MACHINE_2_HMI_URL`
+  - `XTS_MACHINE_3_HMI_URL`
+
+This keeps the backend shared while allowing the same web screens to run both in a browser and inside the .NET WPF operator client.
+
 ### 7) Stop and clean up
 
 ```bash
