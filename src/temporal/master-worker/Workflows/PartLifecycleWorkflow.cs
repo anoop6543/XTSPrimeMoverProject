@@ -20,12 +20,9 @@ public class PartLifecycleWorkflow : IPartLifecycleWorkflow
     // Awaitable signals (using TaskCompletionSource-equivalent pattern in Temporal .NET SDK)
     private int? _assignedMoverId;
     private int? _loadedMachineId;
-    private bool _stationCompleted;
     private int? _unloadedMachineId;
     private bool _unloadedHasDefect;
     private string? _unloadedPartStatus;
-    private bool _exitedGood;
-    private StationEventRecord? _pendingStationEvent;
 
     public PartLifecycleWorkflow()
     {
@@ -129,7 +126,6 @@ public class PartLifecycleWorkflow : IPartLifecycleWorkflow
     public Task SignalExitedAsync(bool good)
     {
         _exited = true;
-        _exitedGood = good;
         _currentStatus = _currentStatus with
         {
             Status = good ? "Good" : "Bad",
