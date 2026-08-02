@@ -323,6 +323,123 @@ services:
     networks: [xts-net]
     depends_on: [temporal, prime-mover-service, prime-mover-api]
 
+  # ── Orchestration Worker ──────────────────────────────────────────────────
+
+  orchestration-worker:
+    build:
+      context: ..
+      dockerfile: docker/orchestration-worker.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      Temporal__Namespace: "default"
+      MesService__BaseUrl: "http://mes-service:8100"
+      WorkforceService__BaseUrl: "http://workforce-service:8200"
+      KnowledgeBaseService__BaseUrl: "http://kb-service:8300"
+      MaintenanceService__BaseUrl: "http://maintenance-service:8400"
+      PrimeMoverApi__BaseUrl: "http://prime-mover-api:8082"
+      MachineApis__Machine0: "http://machine-api-0:8081"
+      MachineApis__Machine1: "http://machine-api-1:8081"
+      MachineApis__Machine2: "http://machine-api-2:8081"
+      MachineApis__Machine3: "http://machine-api-3:8081"
+    networks: [xts-net]
+    depends_on:
+      temporal:
+        condition: service_started
+      postgresql:
+        condition: service_healthy
+
+  # ── MES ───────────────────────────────────────────────────────────────────
+
+  mes-service:
+    build:
+      context: ..
+      dockerfile: docker/mes-service.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=mes_db;Username=xts;******"
+      Temporal__Address: "temporal:7233"
+      ASPNETCORE_URLS: "http://+:8100"
+    ports: ["8100:8100"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8100/health || exit 1"]
+      interval: 10s
+      retries: 5
+
+  mes-api:
+    build:
+      context: ..
+      dockerfile: docker/mes-api.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=mes_db;Username=xts;******"
+      Temporal__Address: "temporal:7233"
+      MesService__BaseUrl: "http://mes-service:8100"
+      ASPNETCORE_URLS: "http://+:8101"
+    ports: ["8101:8101"]
+    networks: [xts-net]
+    depends_on:
+      mes-service:
+        condition: service_healthy
+
+  # ── Workforce ─────────────────────────────────────────────────────────────
+
+  workforce-service:
+    build:
+      context: ..
+      dockerfile: docker/workforce.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=workforce_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8200"
+    ports: ["8200:8200"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8200/health || exit 1"]
+      interval: 10s
+      retries: 5
+
+  # ── Knowledge Base ────────────────────────────────────────────────────────
+
+  kb-service:
+    build:
+      context: ..
+      dockerfile: docker/kb-service.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=kb_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8300"
+    ports: ["8300:8300"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8300/health || exit 1"]
+      interval: 10s
+      retries: 5
+
+  # ── Maintenance ───────────────────────────────────────────────────────────
+
+  maintenance-service:
+    build:
+      context: ..
+      dockerfile: docker/maintenance-service.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=maintenance_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8400"
+    ports: ["8400:8400"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8400/health || exit 1"]
+      interval: 10s
+      retries: 5
+
   # ── Observability ──────────────────────────────────────────────────────────
 
   prometheus:
