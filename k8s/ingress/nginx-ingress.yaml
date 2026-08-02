@@ -1,0 +1,113 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: xts-ingress
+  namespace: xts-system
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: hmi.xts.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prime-mover-svc
+                port:
+                  number: 80
+
+    - host: api.xts.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prime-mover-svc
+                port:
+                  number: 8082
+
+    - host: temporal.xts.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: temporal-ui-svc
+                port:
+                  number: 8080
+
+    - host: grafana.xts.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-svc
+                port:
+                  number: 3000
+
+    - host: jaeger.xts.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jaeger-svc
+                port:
+                  number: 16686
+---
+# Per-machine HMI ingress routes
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: xts-machine-ingress
+  namespace: xts-system
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: hmi.xts.local
+      http:
+        paths:
+          - path: /machine/0(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: machine-laserwelding-svc
+                port:
+                  number: 80
+          - path: /machine/1(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: machine-precisionassembly-svc
+                port:
+                  number: 80
+          - path: /machine/2(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: machine-qualityinspection-svc
+                port:
+                  number: 80
+          - path: /machine/3(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: machine-functionaltesting-svc
+                port:
+                  number: 80

@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:XTSPrimeMoverProject"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
         Title="Beckhoff XTS Prime Mover System" Height="900" Width="1400"
         Background="#1E1E1E">
@@ -1065,6 +1066,53 @@
                                       ContentTemplate="{StaticResource MachineDetailTemplate}"/>
                 </TabItem>
 
+                <TabItem Header="Embedded Web HMIs">
+                    <Grid Background="#1A1A1C" Margin="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="WEB HMI MIRROR" Foreground="#9CDCFE" FontSize="13" FontWeight="Bold"/>
+                                <TextBlock Text="Loads the React HMIs inside the WPF desktop shell so the same web screens can be viewed in-browser and on the desktop HMI." Foreground="#CCCCCC" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TabControl Grid.Row="1"
+                                    Style="{StaticResource DarkTabControlStyle}"
+                                    ItemContainerStyle="{StaticResource DarkTabItemStyle}"
+                                    ItemsSource="{Binding EmbeddedWebHmiScreens, Mode=OneWay}">
+                            <TabControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName, Mode=OneWay}"/>
+                                </DataTemplate>
+                            </TabControl.ItemTemplate>
+                            <TabControl.ContentTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Border Background="#252526" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Description, Mode=OneWay}" Foreground="#DCDCAA" FontSize="11" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding UrlDisplay, Mode=OneWay}" Foreground="#9CDCFE" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Grid.Row="1" Background="#111827" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                                            <wv2:WebView2 Source="{Binding SourceUri, Mode=OneWay}"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </TabControl.ContentTemplate>
+                        </TabControl>
+                    </Grid>
+                </TabItem>
                 <TabItem Header="DB Tables Viewer">
                     <Grid Margin="10">
                         <Grid.RowDefinitions>

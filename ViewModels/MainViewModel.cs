@@ -45,6 +45,7 @@ namespace XTSPrimeMoverProject.ViewModels
         public ObservableCollection<string> DbTables { get; }
         public ObservableCollection<OrchestrationStepEditItem> OrchestrationSteps { get; }
         public ObservableCollection<SafetyGateStatusItemViewModel> SafetyGates { get; }
+        public ObservableCollection<EmbeddedWebHmiScreenViewModel> EmbeddedWebHmiScreens { get; }
         private DataView _dbTableRowsView = CreateEmptyDbTableView();
 
         public DataView DbTableRowsView
@@ -195,7 +196,11 @@ namespace XTSPrimeMoverProject.ViewModels
 
         public string SimulationSpeedText => $"Speed: {SimulationSpeed:F1}x";
 
-        public MainViewModel(IMachineGatewayService machine, IDataGatewayService data, string gatewayModeStatus = "Machine Gateway: Local")
+        public MainViewModel(
+            IMachineGatewayService machine,
+            IDataGatewayService data,
+            string gatewayModeStatus = "Machine Gateway: Local",
+            IEnumerable<EmbeddedWebHmiScreenViewModel>? embeddedWebHmiScreens = null)
         {
             _machine = machine ?? throw new ArgumentNullException(nameof(machine));
             _data = data ?? throw new ArgumentNullException(nameof(data));
@@ -229,7 +234,16 @@ namespace XTSPrimeMoverProject.ViewModels
             DbTables = new ObservableCollection<string>();
             OrchestrationSteps = new ObservableCollection<OrchestrationStepEditItem>();
             SafetyGates = new ObservableCollection<SafetyGateStatusItemViewModel>();
+            EmbeddedWebHmiScreens = new ObservableCollection<EmbeddedWebHmiScreenViewModel>();
             DbTableRowsView = CreateEmptyDbTableView();
+
+            if (embeddedWebHmiScreens is not null)
+            {
+                foreach (var screen in embeddedWebHmiScreens)
+                {
+                    EmbeddedWebHmiScreens.Add(screen);
+                }
+            }
 
             StartCommand = new RelayCommand(Start, () => !IsRunning);
             StopCommand = new RelayCommand(Stop, () => IsRunning);

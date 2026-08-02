@@ -1,0 +1,462 @@
+# XTS Prime Mover — Full Dev Stack
+# Brings up all microservices, Temporal, PostgreSQL, Redis, and all HMIs locally.
+# Usage: docker compose -f docker/docker-compose.dev.yml up
+
+version: '3.9'
+
+networks:
+  xts-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  temporal-data:
+
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  postgresql:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: xts
+      POSTGRES_PASSWORD: xts_dev_pass
+      POSTGRES_DB: xts_system
+    ports: ["5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    networks: [xts-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xts"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: ["redis-data:/data"]
+    networks: [xts-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  elasticsearch:
+    image: elasticsearch:8.16.1
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports: ["9200:9200"]
+    networks: [xts-net]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"'"]
+      interval: 10s
+      retries: 10
+
+  temporal:
+    image: temporalio/auto-setup:1.25.2
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=xts
+      - POSTGRES_PWD=xts_dev_pass
+      - POSTGRES_SEEDS=postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    ports: ["7233:7233"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:2.31.2
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:8088
+    ports: ["8088:8080"]
+    networks: [xts-net]
+    depends_on: [temporal]
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports: ["1883:1883", "9001:9001"]
+    networks: [xts-net]
+    volumes: ["./mosquitto.conf:/mosquitto/config/mosquitto.conf"]
+
+  # ── Machine Pods (×4) ──────────────────────────────────────────────────────
+
+  machine-service-0:
+    build:
+      context: ..
+      dockerfile: docker/machine-service.Dockerfile
+    environment:
+      Machine__Id: "0"
+      Machine__Type: "LaserWelding"
+      ConnectionStrings__Postgres: "Host=postgresql;Database=machine_0_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports: ["8090:8080", "9090:9090"]
+    networks: [xts-net]
+    depends_on: [postgresql]
+
+  machine-api-0:
+    build:
+      context: ..
+      dockerfile: docker/machine-api.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      MachineService__BaseUrl: "http://machine-service-0:8080"
+      Machine__Id: "0"
+    ports: ["8091:8081"]
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-0]
+
+  machine-hmi-0:
+    build:
+      context: ..
+      dockerfile: docker/machine-hmi.Dockerfile
+    ports: ["3001:80"]
+    networks: [xts-net]
+    depends_on: [machine-api-0]
+
+  machine-service-1:
+    build:
+      context: ..
+      dockerfile: docker/machine-service.Dockerfile
+    environment:
+      Machine__Id: "1"
+      Machine__Type: "PrecisionAssembly"
+      ConnectionStrings__Postgres: "Host=postgresql;Database=machine_1_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports: ["8092:8080", "9092:9090"]
+    networks: [xts-net]
+    depends_on: [postgresql]
+
+  machine-api-1:
+    build:
+      context: ..
+      dockerfile: docker/machine-api.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      MachineService__BaseUrl: "http://machine-service-1:8080"
+      Machine__Id: "1"
+    ports: ["8093:8081"]
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-1]
+
+  machine-hmi-1:
+    build:
+      context: ..
+      dockerfile: docker/machine-hmi.Dockerfile
+    ports: ["3002:80"]
+    networks: [xts-net]
+    depends_on: [machine-api-1]
+
+  machine-service-2:
+    build:
+      context: ..
+      dockerfile: docker/machine-service.Dockerfile
+    environment:
+      Machine__Id: "2"
+      Machine__Type: "QualityInspection"
+      ConnectionStrings__Postgres: "Host=postgresql;Database=machine_2_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports: ["8094:8080", "9094:9090"]
+    networks: [xts-net]
+    depends_on: [postgresql]
+
+  machine-api-2:
+    build:
+      context: ..
+      dockerfile: docker/machine-api.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      MachineService__BaseUrl: "http://machine-service-2:8080"
+      Machine__Id: "2"
+    ports: ["8095:8081"]
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-2]
+
+  machine-hmi-2:
+    build:
+      context: ..
+      dockerfile: docker/machine-hmi.Dockerfile
+    ports: ["3003:80"]
+    networks: [xts-net]
+    depends_on: [machine-api-2]
+
+  machine-service-3:
+    build:
+      context: ..
+      dockerfile: docker/machine-service.Dockerfile
+    environment:
+      Machine__Id: "3"
+      Machine__Type: "FunctionalTesting"
+      ConnectionStrings__Postgres: "Host=postgresql;Database=machine_3_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports: ["8096:8080", "9096:9090"]
+    networks: [xts-net]
+    depends_on: [postgresql]
+
+  machine-api-3:
+    build:
+      context: ..
+      dockerfile: docker/machine-api.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      MachineService__BaseUrl: "http://machine-service-3:8080"
+      Machine__Id: "3"
+    ports: ["8097:8081"]
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-3]
+
+  machine-hmi-3:
+    build:
+      context: ..
+      dockerfile: docker/machine-hmi.Dockerfile
+    ports: ["3004:80"]
+    networks: [xts-net]
+    depends_on: [machine-api-3]
+
+  # ── Machine Temporal Workers (×4) ──────────────────────────────────────────
+
+  machine-worker-0:
+    build:
+      context: ..
+      dockerfile: docker/machine-worker.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      Machine__Id: "0"
+      Machine__Name: "LaserWelding"
+      Machine__Type: "LaserWelding"
+      MachineService__BaseUrl: "http://machine-service-0:8080"
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-0]
+
+  machine-worker-1:
+    build:
+      context: ..
+      dockerfile: docker/machine-worker.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      Machine__Id: "1"
+      Machine__Name: "PrecisionAssembly"
+      Machine__Type: "PrecisionAssembly"
+      MachineService__BaseUrl: "http://machine-service-1:8080"
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-1]
+
+  machine-worker-2:
+    build:
+      context: ..
+      dockerfile: docker/machine-worker.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      Machine__Id: "2"
+      Machine__Name: "QualityInspection"
+      Machine__Type: "QualityInspection"
+      MachineService__BaseUrl: "http://machine-service-2:8080"
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-2]
+
+  machine-worker-3:
+    build:
+      context: ..
+      dockerfile: docker/machine-worker.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      Machine__Id: "3"
+      Machine__Name: "FunctionalTesting"
+      Machine__Type: "FunctionalTesting"
+      MachineService__BaseUrl: "http://machine-service-3:8080"
+    networks: [xts-net]
+    depends_on: [temporal, machine-service-3]
+
+  # ── Prime Mover Pod ────────────────────────────────────────────────────────
+
+  prime-mover-service:
+    build:
+      context: ..
+      dockerfile: docker/prime-mover.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=prime_mover_db;Username=xts;******"
+      ConnectionStrings__Redis: "redis:6379"
+      ASPNETCORE_URLS: "http://+:8080"
+    ports: ["8080:8080", "9080:9090"]
+    networks: [xts-net]
+    depends_on: [postgresql, redis]
+
+  prime-mover-api:
+    build:
+      context: ..
+      dockerfile: docker/prime-mover-api.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      PrimeMoverService__BaseUrl: "http://prime-mover-service:8080"
+      MachineApis__Machine0: "http://machine-api-0:8081"
+      MachineApis__Machine1: "http://machine-api-1:8081"
+      MachineApis__Machine2: "http://machine-api-2:8081"
+      MachineApis__Machine3: "http://machine-api-3:8081"
+      Redis__Connection: "redis:6379"
+      ASPNETCORE_URLS: "http://+:8082"
+    ports: ["8082:8082"]
+    networks: [xts-net]
+    depends_on: [temporal, prime-mover-service, redis]
+
+  prime-mover-hmi:
+    build:
+      context: ..
+      dockerfile: docker/prime-mover-hmi.Dockerfile
+    ports: ["3000:80"]
+    networks: [xts-net]
+    depends_on: [prime-mover-api]
+
+  master-worker:
+    build:
+      context: ..
+      dockerfile: docker/master-worker.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      MachineApi__BaseUrl: "http://prime-mover-api:8082"
+      PrimeMoverApi__BaseUrl: "http://prime-mover-api:8082"
+    networks: [xts-net]
+    depends_on: [temporal, prime-mover-service, prime-mover-api]
+
+  # ── Orchestration Worker ──────────────────────────────────────────────────
+
+  orchestration-worker:
+    build:
+      context: ..
+      dockerfile: docker/orchestration-worker.Dockerfile
+    environment:
+      Temporal__Address: "temporal:7233"
+      Temporal__Namespace: "default"
+      MesService__BaseUrl: "http://mes-service:8100"
+      WorkforceService__BaseUrl: "http://workforce-service:8200"
+      KnowledgeBaseService__BaseUrl: "http://kb-service:8300"
+      MaintenanceService__BaseUrl: "http://maintenance-service:8400"
+      PrimeMoverApi__BaseUrl: "http://prime-mover-api:8082"
+      MachineApis__Machine0: "http://machine-api-0:8081"
+      MachineApis__Machine1: "http://machine-api-1:8081"
+      MachineApis__Machine2: "http://machine-api-2:8081"
+      MachineApis__Machine3: "http://machine-api-3:8081"
+    networks: [xts-net]
+    depends_on:
+      temporal:
+        condition: service_started
+      postgresql:
+        condition: service_healthy
+
+  # ── MES ───────────────────────────────────────────────────────────────────
+
+  mes-service:
+    build:
+      context: ..
+      dockerfile: docker/mes-service.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=mes_db;Username=xts;******"
+      Temporal__Address: "temporal:7233"
+      ASPNETCORE_URLS: "http://+:8100"
+    ports: ["8100:8100"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8100/health || exit 1"]
+      interval: 10s
+      retries: 5
+
+  mes-api:
+    build:
+      context: ..
+      dockerfile: docker/mes-api.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=mes_db;Username=xts;******"
+      Temporal__Address: "temporal:7233"
+      MesService__BaseUrl: "http://mes-service:8100"
+      ASPNETCORE_URLS: "http://+:8101"
+    ports: ["8101:8101"]
+    networks: [xts-net]
+    depends_on:
+      mes-service:
+        condition: service_healthy
+
+  # ── Workforce ─────────────────────────────────────────────────────────────
+
+  workforce-service:
+    build:
+      context: ..
+      dockerfile: docker/workforce.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=workforce_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8200"
+    ports: ["8200:8200"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8200/health || exit 1"]
+      interval: 10s
+      retries: 5
+
+  # ── Knowledge Base ────────────────────────────────────────────────────────
+
+  kb-service:
+    build:
+      context: ..
+      dockerfile: docker/kb-service.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=kb_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8300"
+    ports: ["8300:8300"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8300/health || exit 1"]
+      interval: 10s
+      retries: 5
+
+  # ── Maintenance ───────────────────────────────────────────────────────────
+
+  maintenance-service:
+    build:
+      context: ..
+      dockerfile: docker/maintenance-service.Dockerfile
+    environment:
+      ConnectionStrings__Postgres: "Host=postgresql;Database=maintenance_db;Username=xts;******"
+      ASPNETCORE_URLS: "http://+:8400"
+    ports: ["8400:8400"]
+    networks: [xts-net]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8400/health || exit 1"]
+      interval: 10s
+      retries: 5
+
+  # ── Observability ──────────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    ports: ["9999:9090"]
+    volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml"]
+    networks: [xts-net]
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    ports: ["3100:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: xts_grafana
+    networks: [xts-net]
+    depends_on: [prometheus]
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    ports: ["16686:16686", "14268:14268"]
+    networks: [xts-net]

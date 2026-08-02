@@ -1,0 +1,84 @@
+syntax = "proto3";
+option csharp_namespace = "XtsContracts.Grpc";
+
+package machine_service;
+
+service MachineService {
+  rpc GetMachineStatus (MachineStatusRequest) returns (MachineStatusReply);
+  rpc StreamMachineStatus (MachineStatusRequest) returns (stream MachineStatusReply);
+  rpc LoadPart (LoadPartRequest) returns (LoadPartReply);
+  rpc UnloadPart (UnloadPartRequest) returns (UnloadPartReply);
+  rpc ResetMachine (ResetMachineRequest) returns (ResetMachineReply);
+  rpc AcknowledgeFault (AcknowledgeFaultRequest) returns (AcknowledgeFaultReply);
+}
+
+message MachineStatusRequest {
+  int32 machine_id = 1;
+}
+
+message MachineStatusReply {
+  int32 machine_id = 1;
+  string machine_name = 2;
+  string sequencer_state = 3;
+  bool is_operational = 4;
+  bool fault_active = 5;
+  string fault_message = 6;
+  int32 parts_entered = 7;
+  int32 parts_exited = 8;
+  int32 current_station_index = 9;
+  bool is_indexing = 10;
+  double rotary_angle = 11;
+  repeated StationStatus stations = 12;
+  int64 timestamp_utc_ms = 13;
+}
+
+message StationStatus {
+  int32 station_id = 1;
+  string name = 2;
+  string type = 3;
+  string status = 4;
+  double process_time = 5;
+  double elapsed_time = 6;
+  string current_part_tracking = 7;
+}
+
+message LoadPartRequest {
+  int32 machine_id = 1;
+  string part_id = 2;
+  string tracking_number = 3;
+  string part_status = 4;
+  bool has_defect = 5;
+}
+
+message LoadPartReply {
+  bool success = 1;
+  string message = 2;
+}
+
+message UnloadPartRequest {
+  int32 machine_id = 1;
+}
+
+message UnloadPartReply {
+  bool success = 1;
+  string part_id = 2;
+  string tracking_number = 3;
+  bool has_defect = 4;
+  string part_status = 5;
+}
+
+message ResetMachineRequest {
+  int32 machine_id = 1;
+}
+
+message ResetMachineReply {
+  bool success = 1;
+}
+
+message AcknowledgeFaultRequest {
+  int32 machine_id = 1;
+}
+
+message AcknowledgeFaultReply {
+  bool success = 1;
+}

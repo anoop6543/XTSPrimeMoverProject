@@ -1,0 +1,5 @@
+machine:
+  id: 0
+  name: LaserWelding
+  type: LaserWelding
+  loadAngle: 45

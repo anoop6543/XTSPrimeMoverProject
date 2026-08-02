@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: machine-{{ .Values.machine.name | lower | replace " " "-" }}
+  namespace: xts-system
+  labels:
+    app: machine-{{ .Values.machine.name | lower | replace " " "-" }}
+    machine-id: "{{ .Values.machine.id }}"
+    machine-type: "{{ .Values.machine.type }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: machine-{{ .Values.machine.name | lower | replace " " "-" }}
+  template:
+    metadata:
+      labels:
+        app: machine-{{ .Values.machine.name | lower | replace " " "-" }}
+        machine-id: "{{ .Values.machine.id }}"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "{{ .Values.service.servicePort }}"
+    spec:
+      containers:
+        - name: machine-service
+          image: {{ .Values.image.service }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.servicePort }}
+            - containerPort: {{ .Values.service.grpcPort }}
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:{{ .Values.service.servicePort }}"
+            - name: Machine__Id
+              value: "{{ .Values.machine.id }}"
+            - name: Machine__Type
+              value: "{{ .Values.machine.type }}"
+            - name: ConnectionStrings__Postgres
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.secretName }}
+                  key: machine-{{ .Values.machine.id }}-connection-string
+          resources: {{- toYaml .Values.resources.service | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.servicePort }}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.servicePort }}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+
+        - name: machine-api
+          image: {{ .Values.image.api }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.apiPort }}
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:{{ .Values.service.apiPort }}"
+            - name: Temporal__Address
+              value: {{ .Values.temporal.address }}
+            - name: MachineService__BaseUrl
+              value: "http://localhost:{{ .Values.service.servicePort }}"
+            - name: Machine__Id
+              value: "{{ .Values.machine.id }}"
+          resources: {{- toYaml .Values.resources.api | nindent 12 }}
+
+        - name: machine-hmi
+          image: {{ .Values.image.hmi }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.hmiPort }}
+          resources: {{- toYaml .Values.resources.hmi | nindent 12 }}
+
+        - name: machine-worker
+          image: xts/machine-worker:latest
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: Temporal__Address
+              value: {{ .Values.temporal.address }}
+            - name: Machine__Id
+              value: "{{ .Values.machine.id }}"
+            - name: Machine__Name
+              value: {{ .Values.machine.name }}
+            - name: Machine__Type
+              value: {{ .Values.machine.type }}
+            - name: MachineService__BaseUrl
+              value: "http://localhost:{{ .Values.service.servicePort }}"
+          resources:
+            requests: { memory: "128Mi", cpu: "100m" }
+            limits: { memory: "512Mi", cpu: "300m" }

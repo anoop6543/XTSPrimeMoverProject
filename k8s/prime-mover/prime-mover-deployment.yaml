@@ -1,0 +1,97 @@
+# Prime Mover Pod: 3-container pod (service + api + hmi)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prime-mover
+  namespace: xts-system
+  labels:
+    app: prime-mover
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prime-mover
+  template:
+    metadata:
+      labels:
+        app: prime-mover
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: prime-mover-service
+          image: xts/prime-mover-service:latest
+          ports:
+            - containerPort: 8080  # REST
+            - containerPort: 9090  # gRPC
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+            - name: ConnectionStrings__Postgres
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: prime-mover-connection-string
+            - name: ConnectionStrings__Redis
+              value: "redis-svc:6379"
+          resources:
+            requests: { memory: "256Mi", cpu: "200m" }
+            limits: { memory: "1Gi", cpu: "500m" }
+
+        - name: prime-mover-api
+          image: xts/prime-mover-api:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8082"
+            - name: Temporal__Address
+              value: "temporal-svc:7233"
+            - name: PrimeMoverService__BaseUrl
+              value: "http://localhost:8080"
+            - name: MachineApis__Machine0
+              value: "http://machine-laser-welding-svc:8081"
+            - name: MachineApis__Machine1
+              value: "http://machine-precision-asm-svc:8081"
+            - name: MachineApis__Machine2
+              value: "http://machine-quality-insp-svc:8081"
+            - name: MachineApis__Machine3
+              value: "http://machine-func-testing-svc:8081"
+            - name: Redis__Connection
+              value: "redis-svc:6379"
+          resources:
+            requests: { memory: "128Mi", cpu: "100m" }
+            limits: { memory: "512Mi", cpu: "300m" }
+
+        - name: prime-mover-hmi
+          image: xts/prime-mover-hmi:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { memory: "32Mi", cpu: "10m" }
+            limits: { memory: "64Mi", cpu: "50m" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prime-mover-svc
+  namespace: xts-system
+spec:
+  selector:
+    app: prime-mover
+  ports:
+    - name: service
+      port: 8080
+      targetPort: 8080
+    - name: grpc
+      port: 9090
+      targetPort: 9090
+    - name: api
+      port: 8082
+      targetPort: 8082
+    - name: hmi
+      port: 80
+      targetPort: 80
+  type: ClusterIP

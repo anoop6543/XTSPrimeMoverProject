@@ -1,0 +1,39 @@
+# Default values — override per machine via -f values-<machine>.yaml
+machine:
+  id: 0
+  name: LaserWelding
+  type: LaserWelding
+  loadAngle: 45
+
+image:
+  service: xts/machine-service:latest
+  api: xts/machine-api:latest
+  hmi: xts/machine-hmi:latest
+  pullPolicy: Always
+
+temporal:
+  address: temporal-svc:7233
+  namespace: xts-system
+
+postgres:
+  secretName: postgres-secret
+
+redis:
+  address: redis-svc:6379
+
+service:
+  servicePort: 8080
+  apiPort: 8081
+  grpcPort: 9090
+  hmiPort: 80
+
+resources:
+  service:
+    requests: { memory: "256Mi", cpu: "200m" }
+    limits: { memory: "1Gi", cpu: "500m" }
+  api:
+    requests: { memory: "128Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "300m" }
+  hmi:
+    requests: { memory: "32Mi", cpu: "10m" }
+    limits: { memory: "64Mi", cpu: "50m" }

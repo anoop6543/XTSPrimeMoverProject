@@ -1,0 +1,6 @@
+apiVersion: v2
+name: xts-machine
+description: Helm chart for an XTS machine pod (3-container: service + api + hmi)
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
