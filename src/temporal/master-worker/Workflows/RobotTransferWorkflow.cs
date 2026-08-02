@@ -14,7 +14,7 @@ public class RobotTransferWorkflow : IRobotTransferWorkflow
     [WorkflowRun]
     public async Task<RobotTransferResult> RunAsync(RobotTransferInput input)
     {
-        var started = DateTime.UtcNow;
+        var started = Workflow.UtcNow;
         Workflow.Logger.LogInformation("RobotTransfer: Robot={Robot} {Direction} Part={Part}",
             input.RobotId, input.Direction, input.PartTrackingNumber);
 
@@ -55,12 +55,12 @@ public class RobotTransferWorkflow : IRobotTransferWorkflow
                     new ActivityOptions { StartToCloseTimeout = TimeSpan.FromSeconds(10) });
             }
 
-            return new RobotTransferResult(true, null, DateTime.UtcNow - started);
+            return new RobotTransferResult(true, null, Workflow.UtcNow - started);
         }
         catch (Exception ex)
         {
             Workflow.Logger.LogError("RobotTransfer failed: Robot={Robot}, Error={Error}", input.RobotId, ex.Message);
-            return new RobotTransferResult(false, ex.Message, DateTime.UtcNow - started);
+            return new RobotTransferResult(false, ex.Message, Workflow.UtcNow - started);
         }
     }
 }

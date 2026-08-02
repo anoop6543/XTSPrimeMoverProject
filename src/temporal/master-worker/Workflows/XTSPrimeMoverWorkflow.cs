@@ -12,6 +12,7 @@ public class XTSPrimeMoverWorkflow : IXTSPrimeMoverWorkflow
     private readonly List<MoverDto> _movers = new();
     private readonly List<MachineDto> _machines = new();
     private readonly List<RobotDto> _robots = new();
+    private readonly List<int> _machineIds = new();
     private bool _running;
     private double _speedFactor = 1.0;
     private int _totalParts;
@@ -19,6 +20,7 @@ public class XTSPrimeMoverWorkflow : IXTSPrimeMoverWorkflow
     private int _badParts;
     private int _entered;
     private bool _shouldStop;
+    private int _moverCount;
 
     // Signals queue (CAS-safe via Temporal's single-threaded model)
     private readonly Queue<PartReadyFromMachineSignal> _pendingMachineReadySignals = new();
@@ -27,19 +29,10 @@ public class XTSPrimeMoverWorkflow : IXTSPrimeMoverWorkflow
     [WorkflowRun]
     public async Task RunAsync(PrimeMoverInput input)
     {
-        _speedFactor = input.SimulationSpeedFactor;
-
-        // Initialize movers
-        for (int i = 0; i < input.MoverCount; i++)
-        {
-            _movers.Add(new MoverDto(i, i * (360.0 / input.MoverCount), 30.0, "Idle", null, -1));
-        }
-
-        // Initialize machine stubs
-        foreach (var machineId in input.MachineIds)
-        {
-            _machines.Add(new MachineDto(machineId, $"Machine-{machineId}", "Unknown", "Init", true, false, string.Empty, 0, 0, new List<StationDto>(), 0, false, 0));
-        }
+        _moverCount = input.MoverCount;
+        _machineIds.Clear();
+        _machineIds.AddRange(input.MachineIds);
+        ResetWorkflowState(input.SimulationSpeedFactor);
 
         Workflow.Logger.LogInformation("XTSPrimeMoverWorkflow started. Movers={Count}, Machines={Machines}",
             input.MoverCount, string.Join(",", input.MachineIds));
@@ -136,6 +129,13 @@ public class XTSPrimeMoverWorkflow : IXTSPrimeMoverWorkflow
         return Task.CompletedTask;
     }
 
+    [WorkflowSignal("Reset")]
+    public Task SignalResetAsync()
+    {
+        ResetWorkflowState(1.0);
+        return Task.CompletedTask;
+    }
+
     [WorkflowSignal("Shutdown")]
     public Task SignalShutdownAsync()
     {
@@ -150,8 +150,32 @@ public class XTSPrimeMoverWorkflow : IXTSPrimeMoverWorkflow
             _running, _totalParts, _goodParts, _badParts, _entered,
             _goodParts + _badParts,
             _movers.AsReadOnly(), _machines.AsReadOnly(), _robots.AsReadOnly(),
-            DateTime.UtcNow);
+            Workflow.UtcNow);
 
     [WorkflowQuery("GetMoverPositions")]
     public IReadOnlyList<MoverDto> GetMoverPositions() => _movers.AsReadOnly();
+
+    private void ResetWorkflowState(double speedFactor)
+    {
+        _running = false;
+        _speedFactor = speedFactor;
+        _totalParts = 0;
+        _goodParts = 0;
+        _badParts = 0;
+        _entered = 0;
+        _pendingMachineReadySignals.Clear();
+        _machineFaults.Clear();
+
+        _movers.Clear();
+        for (int i = 0; i < _moverCount; i++)
+        {
+            _movers.Add(new MoverDto(i, i * (360.0 / _moverCount), 30.0, "Moving", null, -1));
+        }
+
+        _machines.Clear();
+        foreach (var machineId in _machineIds)
+        {
+            _machines.Add(new MachineDto(machineId, $"Machine-{machineId}", "Unknown", "Init", true, false, string.Empty, 0, 0, new List<StationDto>(), 0, false, 0));
+        }
+    }
 }

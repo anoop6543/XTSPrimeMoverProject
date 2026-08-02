@@ -51,7 +51,7 @@ namespace XTSPrimeMoverProject.Services
         public int PrimeMoverEnteredCount => _entered;
         public int PrimeMoverExitedCount => _goodParts + _badParts;
 
-        public RemoteRestGateway(string baseUrl = "http://localhost:8080")
+        public RemoteRestGateway(string baseUrl = "http://localhost:8082")
         {
             _http = new HttpClient { BaseAddress = new Uri(baseUrl) };
 

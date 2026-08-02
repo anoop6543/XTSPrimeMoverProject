@@ -28,6 +28,9 @@ public interface IXTSPrimeMoverWorkflow
     [WorkflowSignal("MachineFaulted")]
     Task SignalMachineFaultedAsync(int machineId, string faultMessage);
 
+    [WorkflowSignal("Reset")]
+    Task SignalResetAsync();
+
     [WorkflowQuery("GetSystemStatus")]
     SystemStatusDto GetSystemStatus();
 

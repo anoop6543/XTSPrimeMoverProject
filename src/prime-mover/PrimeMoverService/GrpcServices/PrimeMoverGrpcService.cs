@@ -20,6 +20,14 @@ public class PrimeMoverGrpcService : XtsContracts.Grpc.PrimeMoverService.PrimeMo
             BadParts = _engine.BadParts,
             TimestampUtcMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
+        reply.Movers.AddRange(_engine.GetMoverStatuses().Select(m => new XtsContracts.Grpc.MoverStatus
+        {
+            MoverId = m.MoverId,
+            Position = m.Position,
+            Velocity = m.Velocity,
+            State = m.State,
+            LoadedPartTracking = m.LoadedPartTrackingNumber ?? string.Empty
+        }));
         return Task.FromResult(reply);
     }
 
@@ -27,9 +35,8 @@ public class PrimeMoverGrpcService : XtsContracts.Grpc.PrimeMoverService.PrimeMo
     {
         while (!context.CancellationToken.IsCancellationRequested)
         {
-            var tick = _engine.Tick(0.1);
             var update = new MoverPositionUpdate { TimestampUtcMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() };
-            foreach (var m in tick.UpdatedMovers)
+            foreach (var m in _engine.GetMoverStatuses())
             {
                 update.Movers.Add(new XtsContracts.Grpc.MoverStatus
                 {
@@ -47,11 +54,19 @@ public class PrimeMoverGrpcService : XtsContracts.Grpc.PrimeMoverService.PrimeMo
 
     public override Task<SystemCommandReply> SendCommand(SystemCommandRequest request, ServerCallContext context)
     {
-        switch (request.Command.ToLower())
+        var command = request.Command.Trim().ToLowerInvariant();
+        switch (command)
         {
             case "start": _engine.Start(); break;
             case "stop": _engine.Stop(); break;
+            case "reset": _engine.Reset(); break;
             case "setspeed": _engine.SetSpeed(request.SpeedFactor); break;
+            default:
+                return Task.FromResult(new SystemCommandReply
+                {
+                    Success = false,
+                    Message = $"Unsupported command '{request.Command}'. Supported commands: start, stop, reset, setspeed."
+                });
         }
         return Task.FromResult(new SystemCommandReply { Success = true, Message = $"Command '{request.Command}' executed" });
     }

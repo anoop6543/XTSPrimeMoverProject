@@ -14,7 +14,7 @@ public class PartLifecycleWorkflow : IPartLifecycleWorkflow
 {
     private PartDto _currentStatus;
     private readonly List<StationEventRecord> _stationHistory = new();
-    private readonly DateTime _startedAt = DateTime.UtcNow;
+    private DateTime _startedAt;
     private bool _exited;
 
     // Awaitable signals (using TaskCompletionSource-equivalent pattern in Temporal .NET SDK)
@@ -29,18 +29,19 @@ public class PartLifecycleWorkflow : IPartLifecycleWorkflow
 
     public PartLifecycleWorkflow()
     {
-        _currentStatus = new PartDto(Guid.Empty, string.Empty, "Empty", DateTime.UtcNow, false, 0, 0, "Entry", new List<string>());
+        _currentStatus = new PartDto(Guid.Empty, string.Empty, "Empty", DateTime.MinValue, false, 0, 0, "Entry", Array.Empty<string>());
     }
 
     [WorkflowRun]
     public async Task<PartLifecycleResult> RunAsync(PartLifecycleInput input)
     {
+        _startedAt = Workflow.UtcNow;
         _currentStatus = _currentStatus with
         {
             PartId = input.PartId,
             TrackingNumber = input.TrackingNumber,
             Status = "BaseLayer",
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = _startedAt,
             CurrentLocation = "Entry"
         };
 
@@ -61,8 +62,8 @@ public class PartLifecycleWorkflow : IPartLifecycleWorkflow
             // Wait for station processing + unload
             await Workflow.WaitConditionAsync(() => _unloadedMachineId.HasValue);
 
-            var history = (_currentStatus.ProcessHistory as List<string> ?? new List<string>());
-            history.Add($"{DateTime.UtcNow:HH:mm:ss.fff} - Machine-{machineId} complete, defect={_unloadedHasDefect}");
+            var history = _currentStatus.ProcessHistory.ToList();
+            history.Add($"{Workflow.UtcNow:HH:mm:ss.fff} - Machine-{machineId} complete, defect={_unloadedHasDefect}");
 
             _currentStatus = _currentStatus with
             {
@@ -82,7 +83,7 @@ public class PartLifecycleWorkflow : IPartLifecycleWorkflow
         // Wait for exit signal
         await Workflow.WaitConditionAsync(() => _exited);
 
-        var cycleTime = DateTime.UtcNow - _startedAt;
+        var cycleTime = Workflow.UtcNow - _startedAt;
         var good = !_currentStatus.HasDefect;
 
         Workflow.Logger.LogInformation("Part {Tracking} exited. Good={Good}, CycleTime={Time:F2}s",
@@ -110,7 +111,7 @@ public class PartLifecycleWorkflow : IPartLifecycleWorkflow
     {
         _stationHistory.Add(new StationEventRecord(
             _loadedMachineId ?? 0, stationId, stationName,
-            DateTime.UtcNow.AddSeconds(-1), DateTime.UtcNow, hadDefect));
+            Workflow.UtcNow.AddSeconds(-1), Workflow.UtcNow, hadDefect));
         _currentStatus = _currentStatus with { CompletedStations = _currentStatus.CompletedStations + 1 };
         return Task.CompletedTask;
     }

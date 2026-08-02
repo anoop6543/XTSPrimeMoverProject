@@ -13,6 +13,7 @@ public class XtsTrackEngine
     private readonly Random _random = new();
     private readonly List<TrackMover> _movers;
     private readonly List<int> _machineIds;
+    private readonly int _moverCount;
     private double _speedFactor = 1.0;
     private int _trackingCounter;
     private bool _running;
@@ -21,6 +22,7 @@ public class XtsTrackEngine
     private const double MoverMinGapDegrees = 16.0;
     private const double EntryAngle = 205.0;
     private const double ExitAngle = 0.0;
+    private const int ExitTargetIndex = int.MaxValue;
     private static readonly double[] MachineAngles = { 45, 135, 225, 315 };
 
     public int TotalParts { get; private set; }
@@ -31,10 +33,10 @@ public class XtsTrackEngine
 
     public XtsTrackEngine(int moverCount, IReadOnlyList<int> machineIds)
     {
+        _moverCount = moverCount;
         _machineIds = machineIds.ToList();
-        _movers = Enumerable.Range(0, moverCount)
-            .Select(i => new TrackMover(i, i * (360.0 / moverCount)))
-            .ToList();
+        _movers = new List<TrackMover>(moverCount);
+        Reset();
     }
 
     public void Start() { lock (_lock) _running = true; }
@@ -47,11 +49,24 @@ public class XtsTrackEngine
     /// </summary>
     public void NotifyMoverArrivalAtMachine(int moverId, int machineId)
     {
+        if (machineId < 0 || machineId >= MachineAngles.Length)
+        {
+            Console.Error.WriteLine(
+                $"[XtsTrackEngine] NotifyMoverArrivalAtMachine: machineId={machineId} is out of range (0..{MachineAngles.Length - 1}). Request ignored.");
+            return;
+        }
+
         lock (_lock)
         {
             var mover = _movers.FirstOrDefault(m => m.Id == moverId);
-            if (mover != null)
-                mover.State = TrackMoverState.AtMachine;
+            if (mover == null)
+            {
+                Console.Error.WriteLine($"[XtsTrackEngine] NotifyMoverArrivalAtMachine: moverId={moverId} was not found. Request ignored.");
+                return;
+            }
+
+            mover.TargetMachineIndex = machineId;
+            mover.State = mover.CurrentPart == null ? TrackMoverState.Moving : TrackMoverState.Loaded;
         }
     }
 
@@ -73,12 +88,33 @@ public class XtsTrackEngine
         {
             // Find a free mover that is not currently assigned to any machine
             var candidate = _movers
-                .Where(m => m.State == TrackMoverState.Moving && m.CurrentPart == null && m.TargetMachineIndex < 0)
+                .Where(m => m.CurrentPart == null && m.TargetMachineIndex < 0 && m.State != TrackMoverState.AtMachine)
                 .OrderBy(m => AngularDistance(m.Position, MachineAngles[machineId]))
                 .FirstOrDefault();
 
             if (candidate != null)
+            {
                 candidate.TargetMachineIndex = machineId;
+                candidate.State = TrackMoverState.Moving;
+            }
+        }
+    }
+
+    public void Reset()
+    {
+        lock (_lock)
+        {
+            _speedFactor = 1.0;
+            _trackingCounter = 0;
+            _running = false;
+            TotalParts = 0;
+            GoodParts = 0;
+            BadParts = 0;
+            Entered = 0;
+
+            _movers.Clear();
+            _movers.AddRange(Enumerable.Range(0, _moverCount)
+                .Select(i => new TrackMover(i, i * (360.0 / _moverCount))));
         }
     }
 
@@ -107,13 +143,32 @@ public class XtsTrackEngine
             // Update mover positions
             foreach (var m in _movers)
             {
-                if (m.State == TrackMoverState.Moving)
+                if (m.State is TrackMoverState.Moving or TrackMoverState.Loaded)
                     m.Position = (m.Position + m.Velocity * deltaSeconds) % 360.0;
             }
 
-            // Entry zone: assign parts to eligible idle movers
+            foreach (var mover in _movers.Where(m => m.TargetMachineIndex >= 0 && m.TargetMachineIndex != ExitTargetIndex))
+            {
+                if (!IsAtAngle(mover.Position, MachineAngles[mover.TargetMachineIndex], 5.0))
+                    continue;
+
+                if (mover.CurrentPart == null)
+                {
+                    mover.TargetMachineIndex = -1;
+                    mover.State = TrackMoverState.Moving;
+                    continue;
+                }
+
+                var currentRouteIndex = _machineIds.IndexOf(mover.TargetMachineIndex);
+                mover.TargetMachineIndex = currentRouteIndex >= 0 && currentRouteIndex + 1 < _machineIds.Count
+                    ? _machineIds[currentRouteIndex + 1]
+                    : ExitTargetIndex;
+                mover.State = TrackMoverState.Loaded;
+            }
+
+            // Entry zone: assign parts to eligible free movers
             var eligibleForEntry = _movers
-                .Where(m => m.State == TrackMoverState.Idle && m.CurrentPart == null)
+                .Where(m => m.CurrentPart == null && m.TargetMachineIndex < 0)
                 .Where(m => IsAtAngle(m.Position, EntryAngle, 5.0))
                 .FirstOrDefault();
 
@@ -123,7 +178,7 @@ public class XtsTrackEngine
                 var tracking = $"PART-{_trackingCounter:D6}";
                 eligibleForEntry.CurrentPart = new TrackPart(Guid.NewGuid(), tracking);
                 eligibleForEntry.State = TrackMoverState.Loaded;
-                eligibleForEntry.TargetMachineIndex = 0;
+                eligibleForEntry.TargetMachineIndex = _machineIds[0];
                 partEntered = true;
                 newPartId = eligibleForEntry.CurrentPart.PartId;
                 newTracking = tracking;
@@ -134,14 +189,14 @@ public class XtsTrackEngine
             // Exit zone: collect completed parts
             var atExit = _movers.FirstOrDefault(m =>
                 m.CurrentPart != null &&
-                m.TargetMachineIndex >= _machineIds.Count &&
+                m.TargetMachineIndex == ExitTargetIndex &&
                 IsAtAngle(m.Position, ExitAngle, 5.0));
 
             if (atExit != null)
             {
                 bool good = !atExit.CurrentPart!.HasDefect;
                 atExit.CurrentPart = null;
-                atExit.State = TrackMoverState.Idle;
+                atExit.State = TrackMoverState.Moving;
                 atExit.TargetMachineIndex = -1;
                 partExited = true;
                 exitedGood = good;
@@ -150,6 +205,14 @@ public class XtsTrackEngine
             }
 
             return new TrackTickResult(partEntered, newPartId, newTracking, machineRoute, partExited, exitedGood, GetMoverDtos());
+        }
+    }
+
+    public IReadOnlyList<MoverDto> GetMoverStatuses()
+    {
+        lock (_lock)
+        {
+            return GetMoverDtos();
         }
     }
 

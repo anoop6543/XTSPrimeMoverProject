@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
+builder.Services.AddHealthChecks();
 builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Prime Mover API", Version = "v1" }));
 
@@ -29,9 +30,8 @@ builder.Services.AddHttpClient("PrimeMoverService", c =>
 // One HTTP client per machine
 for (int i = 0; i < 4; i++)
 {
-    var machineIdx = i;
     builder.Services.AddHttpClient($"MachineApi-{i}", c =>
-        c.BaseAddress = new Uri(builder.Configuration[$"MachineApis:Machine{i}"] ?? $"http://machine-api-{i}:8080"));
+        c.BaseAddress = new Uri(builder.Configuration[$"MachineApis:Machine{i}"] ?? $"http://machine-api-{i}:8081"));
 }
 
 builder.Services.AddSingleton<MachineAggregatorService>();
@@ -46,4 +46,5 @@ app.UseHttpMetrics();
 app.MapControllers();
 app.MapHub<SystemHub>("/hubs/system");
 app.MapMetrics("/metrics");
+app.MapHealthChecks("/health");
 app.Run();

@@ -27,6 +27,13 @@ public class TrackController : ControllerBase
     [HttpPost("set-speed")]
     public IActionResult SetSpeed([FromQuery] double factor) { _engine.SetSpeed(factor); return Ok(); }
 
+    [HttpPost("reset")]
+    public IActionResult Reset()
+    {
+        _engine.Reset();
+        return Ok(new { success = true });
+    }
+
     [HttpGet("status")]
     public IActionResult GetStatus() => Ok(new
     {
@@ -34,6 +41,7 @@ public class TrackController : ControllerBase
         TotalParts = _engine.TotalParts,
         GoodParts = _engine.GoodParts,
         BadParts = _engine.BadParts,
-        Entered = _engine.Entered
+        Entered = _engine.Entered,
+        Movers = _engine.GetMoverStatuses()
     });
 }

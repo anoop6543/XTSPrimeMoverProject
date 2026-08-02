@@ -22,20 +22,28 @@ public class SystemController : ControllerBase
     }
 
     [HttpGet("status")]
-    public async Task<IActionResult> GetStatus()
-    {
-        var pmClient = _factory.CreateClient("PrimeMoverService");
-        var trackStatus = await pmClient.GetFromJsonAsync<object>("/api/track/status");
-        var machines = await _aggregator.GetAllMachineStatusesAsync();
-        return Ok(new { Track = trackStatus, Machines = machines, Timestamp = DateTime.UtcNow });
-    }
+    public async Task<IActionResult> GetStatus() => Ok(await BuildSystemStatusAsync());
 
     [HttpGet("status/live")]
-    public async Task<IActionResult> GetLiveStatus()
+    public async Task<IActionResult> GetLiveStatus() => Ok(await BuildSystemStatusAsync());
+
+    private async Task<SystemStatusDto> BuildSystemStatusAsync()
     {
-        var handle = _temporal.GetWorkflowHandle<IXTSPrimeMoverWorkflow>("xts-prime-mover-main");
-        var status = await handle.QueryAsync(w => w.GetSystemStatus());
-        return Ok(status);
+        var pmClient = _factory.CreateClient("PrimeMoverService");
+        var trackStatus = await pmClient.GetFromJsonAsync<TrackStatusPayload>("/api/track/status");
+        var machines = await _aggregator.GetAllMachineStatusesAsync();
+
+        return new SystemStatusDto(
+            IsRunning: trackStatus?.IsRunning ?? false,
+            TotalPartsProduced: trackStatus?.TotalParts ?? 0,
+            GoodPartsCount: trackStatus?.GoodParts ?? 0,
+            BadPartsCount: trackStatus?.BadParts ?? 0,
+            PrimeMoverEnteredCount: trackStatus?.Entered ?? 0,
+            PrimeMoverExitedCount: (trackStatus?.GoodParts ?? 0) + (trackStatus?.BadParts ?? 0),
+            Movers: trackStatus?.Movers ?? Array.Empty<MoverDto>(),
+            Machines: machines,
+            Robots: Array.Empty<RobotDto>(),
+            Timestamp: DateTime.UtcNow);
     }
 
     [HttpPost("start")]
@@ -63,8 +71,22 @@ public class SystemController : ControllerBase
     [HttpPost("set-speed")]
     public async Task<IActionResult> SetSpeed([FromQuery] double factor)
     {
+        var pmClient = _factory.CreateClient("PrimeMoverService");
+        await pmClient.PostAsync($"/api/track/set-speed?factor={factor}", null);
+
         var handle = _temporal.GetWorkflowHandle<IXTSPrimeMoverWorkflow>("xts-prime-mover-main");
         await handle.SignalAsync(w => w.SignalSetSpeedAsync(factor));
+        return Ok(new { success = true });
+    }
+
+    [HttpPost("reset")]
+    public async Task<IActionResult> Reset()
+    {
+        var pmClient = _factory.CreateClient("PrimeMoverService");
+        await pmClient.PostAsync("/api/track/reset", null);
+
+        var handle = _temporal.GetWorkflowHandle<IXTSPrimeMoverWorkflow>("xts-prime-mover-main");
+        await handle.SignalAsync(w => w.SignalResetAsync());
         return Ok(new { success = true });
     }
 }
@@ -106,4 +128,14 @@ public class TrackProxyController : ControllerBase
         var body = await response.Content.ReadAsStringAsync();
         return Content(body, "application/json");
     }
+}
+
+public sealed class TrackStatusPayload
+{
+    public bool IsRunning { get; set; }
+    public int TotalParts { get; set; }
+    public int GoodParts { get; set; }
+    public int BadParts { get; set; }
+    public int Entered { get; set; }
+    public IReadOnlyList<MoverDto>? Movers { get; set; }
 }

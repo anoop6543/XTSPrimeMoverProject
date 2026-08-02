@@ -57,7 +57,7 @@ public class SystemStatusBroadcaster : BackgroundService
                     BadPartsCount: track?.BadParts ?? 0,
                     PrimeMoverEnteredCount: track?.Entered ?? 0,
                     PrimeMoverExitedCount: (track?.GoodParts ?? 0) + (track?.BadParts ?? 0),
-                    Movers: Array.Empty<MoverDto>(),
+                    Movers: track?.Movers ?? Array.Empty<MoverDto>(),
                     Machines: machines,
                     Robots: Array.Empty<RobotDto>(),
                     Timestamp: DateTime.UtcNow);
@@ -80,5 +80,6 @@ public class SystemStatusBroadcaster : BackgroundService
         public int GoodParts { get; set; }
         public int BadParts { get; set; }
         public int Entered { get; set; }
+        public IReadOnlyList<MoverDto>? Movers { get; set; }
     }
 }

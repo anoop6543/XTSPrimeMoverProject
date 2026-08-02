@@ -70,7 +70,7 @@ export function useSystemSignalR() {
     // Poll REST as fallback at 2s
     const pollInterval = setInterval(async () => {
       try {
-        const resp = await fetch('/api/system/status')
+        const resp = await fetch('/api/system/status/live')
         if (resp.ok) {
           const data = await resp.json()
           setStatus(data)
