@@ -1,5 +1,6 @@
 using Temporalio.Workflows;
 using XtsContracts.Workflows;
+using XtsContracts;
 using OrchestrationWorker.Activities;
 
 namespace OrchestrationWorker.Workflows;
@@ -109,7 +110,7 @@ public class ProductionOrderWorkflow : IProductionOrderWorkflow
     {
         _paused = true;
         _pauseReason = reason;
-        Workflow.Logger.LogInformation("WO paused by {Op}: {Reason}", requestedBy, reason);
+        Workflow.Logger.LogInformation("WO paused by {Op}: {Reason}", LogSanitizer.Sanitize(requestedBy), LogSanitizer.Sanitize(reason));
         return Task.CompletedTask;
     }
 
@@ -118,7 +119,7 @@ public class ProductionOrderWorkflow : IProductionOrderWorkflow
     {
         _paused = false;
         _pauseReason = null;
-        Workflow.Logger.LogInformation("WO resumed by {Op}", authorizedBy);
+        Workflow.Logger.LogInformation("WO resumed by {Op}", LogSanitizer.Sanitize(authorizedBy));
         return Task.CompletedTask;
     }
 
@@ -127,7 +128,7 @@ public class ProductionOrderWorkflow : IProductionOrderWorkflow
     {
         _cancelled = true;
         _cancelledBy = authorizedBy;
-        Workflow.Logger.LogWarning("WO cancelled by {Op}: {Reason}", authorizedBy, reason);
+        Workflow.Logger.LogWarning("WO cancelled by {Op}: {Reason}", LogSanitizer.Sanitize(authorizedBy), LogSanitizer.Sanitize(reason));
         return Task.CompletedTask;
     }
 

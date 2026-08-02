@@ -2,6 +2,7 @@ using Dapper;
 using Npgsql;
 using MesService.Domain;
 using XtsContracts.Dtos;
+using XtsContracts;
 
 namespace MesService.Services;
 
@@ -61,7 +62,7 @@ public class QualityService
                  @DefectCategory, @DefectDescription, @Severity, @Status, @CreatedAt)
             """, ncr);
 
-        _logger.LogWarning("NCR created: {NCR} for Part {Part}", ncr.NcrNumber, partTracking);
+        _logger.LogWarning("NCR created: {NCR} for Part {Part}", LogSanitizer.Sanitize(ncr.NcrNumber), LogSanitizer.Sanitize(partTracking));
         return ncr;
     }
 

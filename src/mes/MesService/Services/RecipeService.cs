@@ -3,6 +3,7 @@ using Dapper;
 using Npgsql;
 using MesService.Domain;
 using XtsContracts.Dtos;
+using XtsContracts;
 
 namespace MesService.Services;
 
@@ -68,7 +69,7 @@ public class RecipeService
             recipe.CreatedAt
         });
 
-        _logger.LogInformation("Recipe created: {Product} rev {Rev}", recipe.ProductId, recipe.Revision);
+        _logger.LogInformation("Recipe created: {Product} rev {Rev}", LogSanitizer.Sanitize(recipe.ProductId), LogSanitizer.Sanitize(recipe.Revision));
         return recipe;
     }
 
@@ -87,7 +88,7 @@ public class RecipeService
             UPDATE recipes SET status = 'Active', approved_by = @By, approved_at = @At
             WHERE id = @Id
             """, new { Id = id, By = approvedBy, At = DateTime.UtcNow });
-        _logger.LogInformation("Recipe {Id} approved by {By}", id, approvedBy);
+        _logger.LogInformation("Recipe {Id} approved by {By}", id, LogSanitizer.Sanitize(approvedBy));
     }
 
     private static Recipe MapRow(dynamic row) => new()

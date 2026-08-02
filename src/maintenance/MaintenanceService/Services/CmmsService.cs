@@ -1,3 +1,4 @@
+using XtsContracts;
 using Dapper;
 using Npgsql;
 using MaintenanceService.Domain;
@@ -56,7 +57,8 @@ public class CmmsService
 
         _logger.LogInformation(
             "Maintenance WO created: {WO}, Machine={M}, Type={T}",
-            wo.WorkOrderNumber, wo.MachineId, wo.MaintenanceType);
+            LogSanitizer.Sanitize(wo.WorkOrderNumber), wo.MachineId,
+            LogSanitizer.Sanitize(wo.MaintenanceType));
         return wo;
     }
 

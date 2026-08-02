@@ -3,6 +3,7 @@ using Dapper;
 using Npgsql;
 using KnowledgeBaseService.Domain;
 using XtsContracts.Dtos;
+using XtsContracts;
 
 namespace KnowledgeBaseService.Services;
 
@@ -118,7 +119,7 @@ public class ErrorKnowledgeService
 
             _logger.LogInformation(
                 "KB updated: Alarm={Code}, Success={S}, ConfScore={C:F3}",
-                alarmCode, wasSuccessful, newConfidence);
+                LogSanitizer.Sanitize(alarmCode), wasSuccessful, newConfidence);
         }
 
         // Pattern detection: same alarm 3× on same machine in 7 days
@@ -132,7 +133,7 @@ public class ErrorKnowledgeService
         {
             _logger.LogWarning(
                 "PREDICTIVE FLAG: Alarm {Code} on Machine {M} occurred {N}× in 7 days — consider PM",
-                alarmCode, machineId, recentCount);
+                LogSanitizer.Sanitize(alarmCode), machineId, recentCount);
             // In production: trigger a MaintenanceWorkflow or alert
         }
     }

@@ -3,6 +3,7 @@ using Npgsql;
 using KnowledgeBaseService.Domain;
 using XtsContracts.Dtos;
 using System.Text.Json;
+using XtsContracts;
 
 namespace KnowledgeBaseService.Services;
 
@@ -82,14 +83,16 @@ public class IssueReportingService
 
         _logger.LogInformation(
             "Issue report submitted: {Nr} Category={Cat} Severity={Sev} Machine={M}",
-            report.ReportNumber, report.Category, report.Severity, report.MachineId);
+            LogSanitizer.Sanitize(report.ReportNumber), LogSanitizer.Sanitize(report.Category),
+            LogSanitizer.Sanitize(report.Severity), report.MachineId);
 
         // Safety severity: immediate log escalation
         if (report.Severity == "MustStop")
         {
             _logger.LogCritical(
                 "SAFETY STOP REQUESTED by {Op} at Machine {M}: {Desc}",
-                report.OperatorName, report.MachineId, report.Description);
+                LogSanitizer.Sanitize(report.OperatorName), report.MachineId,
+                LogSanitizer.Sanitize(report.Description));
         }
 
         return report;
