@@ -1,0 +1,12 @@
+{
+  "name": "xts-twin-video",
+  "private": true,
+  "type": "module",
+  "description": "Renders the Three.js digital twin frame-by-frame from recorded engine frames and encodes MP4 videos.",
+  "scripts": {
+    "capture": "node capture.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.56.0"
+  }
+}

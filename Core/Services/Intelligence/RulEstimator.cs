@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace XTSPrimeMoverProject.Services.Intelligence
 {
@@ -22,7 +23,7 @@ namespace XTSPrimeMoverProject.Services.Intelligence
         private const int WindowSize = 300;
         private const int MinimumPoints = 20;
         private const double PointInterval = 1.0;
-        private static readonly int[] FitWindows = { 60, 150, 300 };
+        private static readonly int[] FitWindows = { 20, 60, 150, 300 };
 
         private readonly List<double> _tau = new();
         private readonly List<double> _logY = new();
@@ -75,14 +76,14 @@ namespace XTSPrimeMoverProject.Services.Intelligence
             double phi = Degradation.LinearisingOffset;
 
             // Multi-horizon fits: short windows react to a sudden acceleration (fault onset), long windows
-            // are precise for slow wear. Use the most conservative credible estimate.
-            double? bestRemaining = null;
-            double bestConfidence = 0;
+            // are precise for slow wear. Use the most conservative credible estimate; its confidence is the
+            // best confidence among horizons that agree with it (±30%).
+            var credible = new List<(double Remaining, double Confidence)>();
             double fallbackRemaining = double.NaN;
             double fallbackConfidence = 0;
             foreach (int window in FitWindows)
             {
-                if (_tau.Count < Math.Min(window, MinimumPoints))
+                if (_tau.Count < Math.Min(window, MinimumPoints) || (window < MinimumPoints && _tau.Count < window))
                 {
                     continue;
                 }
@@ -105,20 +106,22 @@ namespace XTSPrimeMoverProject.Services.Intelligence
                 double remaining = Math.Max(0, tauFail - operatingTime) / duty;
                 double spanFactor = Math.Clamp((x[^1] - x[0]) / 40.0, 0.2, 1.0);
                 double confidence = Math.Clamp(fit.RSquared * spanFactor, 0, 0.99);
-
-                if (fit.RSquared >= 0.6 && (bestRemaining == null || remaining < bestRemaining))
+                if (fit.RSquared >= 0.6)
                 {
-                    bestRemaining = remaining;
-                    bestConfidence = confidence;
+                    credible.Add((remaining, confidence));
                 }
 
                 fallbackRemaining = remaining;
                 fallbackConfidence = confidence;
             }
 
-            if (bestRemaining.HasValue)
+            if (credible.Count > 0)
             {
-                Current = new RulEstimate(health, bestRemaining, bestConfidence, "Exponential P-F model (multi-horizon LSQ)", false);
+                double chosen = credible.Min(c => c.Remaining);
+                double confidence = credible
+                    .Where(c => Math.Abs(c.Remaining - chosen) <= 0.3 * Math.Max(chosen, 1))
+                    .Max(c => c.Confidence);
+                Current = new RulEstimate(health, chosen, confidence, "Exponential P-F model (multi-horizon LSQ)", false);
             }
             else if (!double.IsNaN(fallbackRemaining))
             {

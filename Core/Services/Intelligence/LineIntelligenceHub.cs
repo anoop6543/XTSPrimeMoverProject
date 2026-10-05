@@ -244,16 +244,16 @@ namespace XTSPrimeMoverProject.Services.Intelligence
             switch (scenario)
             {
                 case FaultScenario.LaserOpticsContamination:
-                    label = Inject(MachineType.LaserWelding, 22, "Laser optics contamination (spatter on protective window)");
+                    label = Inject(MachineType.LaserWelding, 12, "Laser optics contamination (spatter on protective window)");
                     break;
                 case FaultScenario.SpindleBearingDefect:
-                    label = Inject(MachineType.PrecisionAssembly, 18, "Spindle bearing outer-race defect");
+                    label = Inject(MachineType.PrecisionAssembly, 10, "Spindle bearing outer-race defect");
                     break;
                 case FaultScenario.VisionLightingDrift:
-                    label = Inject(MachineType.QualityInspection, 16, "Ring-light LED degradation");
+                    label = Inject(MachineType.QualityInspection, 10, "Ring-light LED degradation");
                     break;
                 case FaultScenario.FixtureContactWear:
-                    label = Inject(MachineType.FunctionalTesting, 20, "Pogo-pin contact wear / contamination");
+                    label = Inject(MachineType.FunctionalTesting, 12, "Pogo-pin contact wear / contamination");
                     break;
                 case FaultScenario.RobotGripperLeak:
                     var robotTwin = _robotTwins.Count > 1 ? _robotTwins[1] : _robotTwins.FirstOrDefault();
@@ -262,7 +262,7 @@ namespace XTSPrimeMoverProject.Services.Intelligence
                         return "No robot available.";
                     }
 
-                    robotTwin.DamageAcceleration = 60;
+                    robotTwin.DamageAcceleration = 40;
                     robotTwin.InjectedFault = "Vacuum gripper leak";
                     label = $"Vacuum gripper leak injected on {robotTwin.Robot.Name}";
                     break;
@@ -582,6 +582,8 @@ namespace XTSPrimeMoverProject.Services.Intelligence
 
             cell.LastMaintenanceEnd = SimTime;
             cell.AnomalyLatched = false;
+            cell.AnyAnomaly = false;
+            cell.AnomalyHoldUntil = double.NegativeInfinity;
             Raise("Info", $"Maintenance {m.Name}",
                 $"{(breakdown ? "Repair" : "Planned maintenance")} complete – cell back in production, health restored, AI baselines recommissioned.",
                 alarm: false);
@@ -633,6 +635,12 @@ namespace XTSPrimeMoverProject.Services.Intelligence
                 cell.PrimaryDetector.Add(twin.PrimaryValue - twin.Mode.PrimaryHealthy);
                 cell.Rul.Update(SimTime, twin.StressTimeSeconds, twin.ObservedDegradation);
 
+                if (cell.RawAnomaly)
+                {
+                    cell.AnomalyHoldUntil = SimTime + 5.0;
+                }
+
+                cell.AnyAnomaly = cell.RawAnomaly || SimTime < cell.AnomalyHoldUntil;
                 bool anomalous = cell.AnyAnomaly;
                 if (anomalous && !cell.AnomalyLatched)
                 {
@@ -668,9 +676,12 @@ namespace XTSPrimeMoverProject.Services.Intelligence
                 var rul = cell.Rul.Current;
                 var robotTwin = _robotTwins.FirstOrDefault(r => r.Robot.AssignedMachineId == m.MachineId);
                 string? reason = null;
-                if (!rul.IsLearning && rul.RemainingSeconds.HasValue && rul.RemainingSeconds.Value < 150 && rul.Confidence >= 0.45)
+                // Maintenance lead time = drain the part in the cell + the planned stop itself; plan with 2.5x margin.
+                double leadTime = EstimateMachineFreeInSeconds(m.MachineId) + PlannedMaintenanceSeconds + 10;
+                double pmHorizon = Math.Max(150, 2.5 * leadTime);
+                if (!rul.IsLearning && rul.RemainingSeconds.HasValue && rul.RemainingSeconds.Value < pmHorizon && rul.Confidence >= 0.45)
                 {
-                    reason = $"predicted '{cell.Twin.Mode.Name}' failure in {FormatDuration(rul.RemainingSeconds.Value)} (confidence {rul.Confidence:P0})";
+                    reason = $"predicted '{cell.Twin.Mode.Name}' failure in {FormatDuration(rul.RemainingSeconds.Value)} (confidence {rul.Confidence:P0}, maintenance lead time ≈{leadTime:F0} s)";
                 }
                 else if (rul.HealthIndex < 0.42)
                 {
@@ -991,7 +1002,11 @@ namespace XTSPrimeMoverProject.Services.Intelligence
             public RingBuffer PrimaryHistory { get; } = new(120);
             public RingBuffer HealthHistory { get; } = new(120);
 
-            public bool AnyAnomaly => TemperatureDetector.IsAnomalous || VibrationDetector.IsAnomalous || PrimaryDetector.IsAnomalous;
+            public bool RawAnomaly => TemperatureDetector.IsAnomalous || VibrationDetector.IsAnomalous || PrimaryDetector.IsAnomalous;
+
+            /// <summary>Anomaly with 5 s hold-off so a flag never flickers on and off at the limit.</summary>
+            public bool AnyAnomaly { get; set; }
+            public double AnomalyHoldUntil { get; set; } = double.NegativeInfinity;
 
             public double MaxAnomalyScore => Math.Max(TemperatureDetector.Score, Math.Max(VibrationDetector.Score, PrimaryDetector.Score));
 

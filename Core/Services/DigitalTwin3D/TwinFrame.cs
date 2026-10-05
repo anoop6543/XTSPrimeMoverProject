@@ -98,6 +98,8 @@ namespace XTSPrimeMoverProject.Services.DigitalTwin3D
         public string St { get; init; } = string.Empty;
         public double P { get; init; }
         public TwinPart? Part { get; init; }
+        public TwinPart? Part2 { get; init; }
+        public bool Staged { get; init; }
         public double Health { get; init; } = 1;
     }
 
@@ -208,6 +210,8 @@ namespace XTSPrimeMoverProject.Services.DigitalTwin3D
                 St = r.State.ToString(),
                 P = r.ActionTime > 0 ? Math.Round(Math.Clamp(r.ActionProgress / r.ActionTime, 0, 1), 3) : 0,
                 Part = ToPart(r.HeldPart),
+                Part2 = ToPart(r.SecondaryHeldPart),
+                Staged = r.IsStagedAtDock,
                 Health = Math.Round(robotHealth.TryGetValue(r.RobotId, out var h) ? h : 1, 3)
             }).ToList();
 

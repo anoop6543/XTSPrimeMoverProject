@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XTS Line Digital Twin</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="twin.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three.module.js",
+        "three/addons/": "./vendor/addons/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <header class="hud hud-top-left">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <div>
+        <div class="brand-title">XTS EV Battery Module Line</div>
+        <div class="brand-sub">Digital twin · <span id="mode-badge" class="badge">CONNECTING</span> · t = <span id="sim-time">0.0</span> s</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="hud hud-top-right" id="kpis" aria-label="Line KPIs">
+    <div class="kpi"><span class="kpi-label">OEE</span><span class="kpi-value" id="kpi-oee">–</span></div>
+    <div class="kpi"><span class="kpi-label">Output</span><span class="kpi-value" id="kpi-tput">–</span></div>
+    <div class="kpi"><span class="kpi-label">Yield</span><span class="kpi-value" id="kpi-yield">–</span></div>
+    <div class="kpi"><span class="kpi-label">Power</span><span class="kpi-value" id="kpi-kw">–</span></div>
+    <div class="kpi"><span class="kpi-label">Energy</span><span class="kpi-value" id="kpi-wh">–</span></div>
+    <div class="kpi"><span class="kpi-label">WIP</span><span class="kpi-value" id="kpi-wip">–</span></div>
+    <div class="kpi kpi-ai" id="kpi-autopilot"><span class="kpi-label">AI autopilot</span><span class="kpi-value" id="kpi-ap">–</span></div>
+  </section>
+
+  <section class="hud hud-bottom-left" aria-label="AI findings">
+    <div class="panel-title">AI copilot</div>
+    <ul id="alerts" class="alerts"></ul>
+    <div id="decision" class="decision"></div>
+  </section>
+
+  <nav class="hud hud-bottom-right" aria-label="Camera">
+    <button data-cam="overview" class="active">Overview</button>
+    <button data-cam="m0">M0 Weld</button>
+    <button data-cam="m1">M1 Assembly</button>
+    <button data-cam="m2">M2 Vision</button>
+    <button data-cam="m3">M3 EOL Test</button>
+    <button data-cam="follow">Follow mover</button>
+    <button data-cam="tour" class="accent">Cinematic tour</button>
+  </nav>
+
+  <div id="caption" class="caption" aria-live="polite"></div>
+  <div id="loading" class="loading">Building the line…</div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

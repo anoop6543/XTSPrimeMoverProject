@@ -33,8 +33,11 @@ namespace XTSPrimeMoverProject.Services.Intelligence
 
         private readonly int _commissioningSamples;
         private readonly double _minimumSigma;
+        private const double EwmaLambda = 0.15;
+
         private readonly double _baselineLambda;
-        private readonly Ewma _smoothed;
+        private double _ewma;
+        private int _monitored;
         private double _sum;
         private double _sumSquares;
         private int _learned;
@@ -49,7 +52,6 @@ namespace XTSPrimeMoverProject.Services.Intelligence
             _commissioningSamples = Math.Max(10, commissioningSamples);
             _minimumSigma = minimumSigma;
             _baselineLambda = Math.Clamp(baselineLambda, 0, 1);
-            _smoothed = new Ewma(0.15);
         }
 
         public string Channel { get; }
@@ -79,16 +81,22 @@ namespace XTSPrimeMoverProject.Services.Intelligence
                     Baseline = _sum / _learned;
                     double variance = Math.Max(0, (_sumSquares - _learned * Baseline * Baseline) / (_learned - 1));
                     NoiseSigma = Math.Max(_minimumSigma, Math.Sqrt(variance));
-                    _smoothed.Reset();
+                    _ewma = 0;
+                    _monitored = 0;
                 }
 
                 return;
             }
 
             double z = (residual - Baseline) / NoiseSigma;
-            double ewma = _smoothed.Update(z);
-            double ewmaSigma = Math.Sqrt(_smoothed.Lambda / (2 - _smoothed.Lambda));
-            EwmaZ = ewma / ewmaSigma;
+
+            // EWMA control statistic started at the target (0) with exact, time-varying limits:
+            // Var = λ/(2-λ) · (1 - (1-λ)^(2i)). Starting from the first sample instead would make one
+            // ordinary sample look like a 4σ excursion right after (re)commissioning.
+            _monitored++;
+            _ewma = EwmaLambda * z + (1 - EwmaLambda) * _ewma;
+            double ewmaSigma = Math.Sqrt(EwmaLambda / (2 - EwmaLambda) * (1 - Math.Pow(1 - EwmaLambda, 2 * _monitored)));
+            EwmaZ = _ewma / ewmaSigma;
 
             CusumHigh = Math.Max(0, CusumHigh + z - CusumK);
             CusumLow = Math.Max(0, CusumLow - z - CusumK);
@@ -111,7 +119,8 @@ namespace XTSPrimeMoverProject.Services.Intelligence
             CusumHigh = 0;
             CusumLow = 0;
             Score = 0;
-            _smoothed.Reset();
+            _ewma = 0;
+            _monitored = 0;
         }
     }
 

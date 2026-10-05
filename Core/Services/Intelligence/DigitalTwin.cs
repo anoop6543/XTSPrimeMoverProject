@@ -140,6 +140,8 @@ namespace XTSPrimeMoverProject.Services.Intelligence
             Damage = 0.01 + rng.NextDouble() * 0.04;
             DamageAcceleration = 1.0;
             InjectedFault = null;
+            // The cell was locked out and serviced: it restarts from the healthy thermal state.
+            TemperatureC = ShadowTemperatureC;
         }
 
         private double SteadyStateTemperature(MachineActivity activity, double effect)
