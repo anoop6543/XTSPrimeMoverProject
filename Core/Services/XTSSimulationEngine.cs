@@ -149,8 +149,6 @@ namespace XTSPrimeMoverProject.Services
         /// <summary>Latest immutable AI snapshot (thread-safe, lock-free read).</summary>
         public IntelligenceSnapshot GetIntelligenceSnapshot() => _intel.Snapshot;
 
-        internal LineIntelligenceHub Intelligence => _intel;
-
         public void SetAutopilotEnabled(bool enabled)
         {
             lock (_simulationLock)

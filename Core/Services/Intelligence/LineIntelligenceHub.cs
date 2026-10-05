@@ -409,18 +409,6 @@ namespace XTSPrimeMoverProject.Services.Intelligence
             return snapshot;
         }
 
-        /// <summary>Diagnostics string of the anomaly/prognostics internals (tests, debugging).</summary>
-        internal string DescribeDetectors(int machineId)
-        {
-            var c = _cellsById[machineId];
-            static string D(IAnomalyChannel d) =>
-                $"{d.Channel}: ewmaZ {d.EwmaZ:F2} cusum+ {d.CusumHigh:F1} cusum- {d.CusumLow:F1}{(d.IsAnomalous ? " ANOM" : string.Empty)}";
-            return $"t={SimTime:F0} D={c.Twin.Damage:F3} eff={c.Twin.Effect:F3} prim={c.Twin.PrimaryValue:0.###} T={c.Twin.MeasuredTemperatureC:F1}/{c.Twin.ShadowTemperatureC:F1} act={c.Activity} | " +
-                   $"{D(c.TemperatureDetector)} | {D(c.VibrationDetector)} | {D(c.PrimaryDetector)} | RUL {c.Rul.Current.RemainingSeconds:F0} conf {c.Rul.Current.Confidence:F2}";
-        }
-
-        internal LineIntelligenceHub DebugSelf => this;
-
         // ------------------------------------------------------------------ internals
 
         private MachineActivity Classify(MachineCell cell)

@@ -54,7 +54,15 @@ namespace XTSPrimeMoverProject.Controls
                 IsHeadLightEnabled = false,
                 ModelUpDirection = new Vector3D(0, 0, 1),
                 CameraRotationMode = CameraRotationMode.Turnball,
-                InfiniteSpin = false
+                InfiniteSpin = false,
+                Camera = new PerspectiveCamera
+                {
+                    Position = new Point3D(4.4, -5.2, 3.6),
+                    LookDirection = new Vector3D(-4.4, 5.2, -2.8),
+                    UpDirection = new Vector3D(0, 0, 1),
+                    FieldOfView = 45,
+                    NearPlaneDistance = 0.05
+                }
             };
             _viewport.Children.Add(new SunLight { Altitude = 55, Azimuth = 140, Brightness = 0.9, Ambient = 0.35 });
             _viewport.Children.Add(new DefaultLights());
@@ -263,7 +271,9 @@ namespace XTSPrimeMoverProject.Controls
         {
             private readonly GeometryModel3D _cabinet;
             private readonly GeometryModel3D _andon;
-            private readonly ModelVisual3D _arm;
+            private readonly PipeVisual3D _arm;
+            private readonly ModelVisual3D _heldPart;
+            private Point3D _lastTool;
             private readonly BillboardTextVisual3D _label;
             private readonly Point3D _robotBase;
             private readonly Vector3D _toTrack;
@@ -299,8 +309,12 @@ namespace XTSPrimeMoverProject.Controls
                 _robotBase = new Point3D(x + nx * 0.46 + tx * 0.34, -(depth + ndepth * 0.46 + tdepth * 0.34), 0);
                 var pedestal = new PipeVisual3D { Point1 = _robotBase, Point2 = _robotBase + new Vector3D(0, 0, 0.7), Diameter = 0.24, Material = Anodized };
                 Root.Children.Add(pedestal);
-                _arm = new ModelVisual3D();
+                var shoulder = _robotBase + new Vector3D(0, 0, 0.86);
+                _arm = new PipeVisual3D { Point1 = shoulder, Point2 = shoulder + new Vector3D(0, 0, 0.15), Diameter = 0.09, Material = RobotOrange };
                 Root.Children.Add(_arm);
+                _heldPart = Box(new Point3D(0, 0, 0), 0.2, 0.11, 0.085, CellBlue);
+                _heldPart.Transform = new ScaleTransform3D(0, 0, 0);
+                Root.Children.Add(_heldPart);
 
                 _label = new BillboardTextVisual3D
                 {
@@ -334,12 +348,16 @@ namespace XTSPrimeMoverProject.Controls
                 };
                 var shoulder = _robotBase + new Vector3D(0, 0, 0.86);
                 var tool = shoulder + reach + new Vector3D(0, 0, 0.05);
-                _arm.Children.Clear();
-                _arm.Children.Add(new PipeVisual3D { Point1 = shoulder, Point2 = tool, Diameter = 0.09, Material = RobotOrange });
-                if (robot?.HeldPart != null)
+                if (tool != _lastTool)
                 {
-                    _arm.Children.Add(Box(tool - new Vector3D(0, 0, 0.1), 0.2, 0.11, 0.085, CellBlue));
+                    _arm.Point2 = tool; // only regenerate the arm mesh when the pose actually changes
+                    _lastTool = tool;
                 }
+
+                var held = tool - new Vector3D(0, 0, 0.1);
+                _heldPart.Transform = robot?.HeldPart != null
+                    ? new TranslateTransform3D(held.X, held.Y, held.Z)
+                    : new ScaleTransform3D(0, 0, 0);
 
                 string label = $"{machine.Name}  {(ai?.HealthEstimate ?? 1):P0}{(ai?.AnomalyFlag == true ? "  ⚠ ANOMALY" : string.Empty)}{(maint ? (breakdown ? "  ✖ BREAKDOWN" : "  🔧 PM") : string.Empty)}{(ai?.IsBottleneck == true ? "  ⚑ constraint" : string.Empty)}";
                 if (label != _lastLabel)
