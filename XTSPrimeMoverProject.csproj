@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -8,12 +8,30 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <!-- Sub-projects live under these folders and are built separately. -->
+  <ItemGroup>
+    <Compile Remove="Core\**;tests\**;tools\**" />
+    <EmbeddedResource Remove="Core\**;tests\**;tools\**" />
+    <None Remove="Core\**;tests\**;tools\**" />
+    <Page Remove="Core\**;tests\**;tools\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Include=".github\copilot-instructions.md" />
   </ItemGroup>
 
+  <!-- Three.js digital twin served to WebView2 from the output folder. -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <Content Include="Web\twin\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Core\XTSPrimeMoverProject.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageReference Include="HelixToolkit.Wpf" Version="2.27.3" />
   </ItemGroup>
 
 </Project>

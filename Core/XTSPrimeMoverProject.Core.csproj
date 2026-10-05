@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cross-platform simulation core: domain models, PLC/motion function blocks,
+    XTS engine, AI intelligence layer and SQLite traceability.
+    No WPF dependency, so it runs headless (tests, video recorder, future services).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>XTSPrimeMoverProject</RootNamespace>
+    <AssemblyName>XTSPrimeMoverProject.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Anthropic" Version="12.53.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="XTSPrimeMoverProject.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace XTSPrimeMoverProject.Models
 {
@@ -27,6 +28,15 @@ namespace XTSPrimeMoverProject.Models
         public int NextMachineIndex { get; set; }
         public int CompletedStations { get; set; }
         public string CurrentLocation { get; set; }
+
+        /// <summary>Number of machine operations completed (drives the 3D build-up of the battery module).</summary>
+        public int MachinesCompleted { get; set; }
+
+        /// <summary>Simulation time (seconds) at which the part entered the XTS line; used for flow-time analytics.</summary>
+        public double EnteredSimTime { get; set; }
+
+        /// <summary>In-process measurements, one per station (full genealogy for traceability).</summary>
+        public List<StationMeasurement> Measurements { get; } = new();
 
         public Part()
         {

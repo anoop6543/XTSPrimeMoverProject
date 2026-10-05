@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using XTSPrimeMoverProject.Models;
+using XTSPrimeMoverProject.Services.Intelligence;
 
 namespace XTSPrimeMoverProject.Services
 {
@@ -32,6 +33,17 @@ namespace XTSPrimeMoverProject.Services
         bool TryApplyOrchestration(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions, out string message);
         IReadOnlyList<string> PreviewOrchestrationValidation(IReadOnlyList<OrchestrationStepDefinition> stepDefinitions);
         IReadOnlyList<SafetyGateStatus> GetOrchestrationSafetyGateStatuses();
+
+        // --- AI intelligence layer ---
+        double SimulationTimeSeconds { get; }
+        bool AutopilotEnabled { get; }
+        IntelligenceSnapshot GetIntelligenceSnapshot();
+        void SetAutopilotEnabled(bool enabled);
+        string InjectFault(FaultScenario scenario);
+        void ClearFaults();
+        bool RequestMaintenance(int machineId);
+        string AskCopilot(string question);
+        string GetCopilotContextJson();
     }
 
     public interface IDataGatewayService

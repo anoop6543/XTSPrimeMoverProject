@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using XTSPrimeMoverProject.Models;
+using XTSPrimeMoverProject.Services.Intelligence;
 
 namespace XTSPrimeMoverProject.Services
 {
@@ -136,6 +137,81 @@ namespace XTSPrimeMoverProject.Services
                 "LocalGateway.GetOrchestrationSafetyGateStatuses",
                 ErrorCategory.Gateway,
                 fallback: Array.Empty<SafetyGateStatus>())!;
+        }
+
+        // --- AI intelligence layer ---
+
+        public double SimulationTimeSeconds => _engine.SimulationTimeSeconds;
+        public bool AutopilotEnabled => _engine.AutopilotEnabled;
+
+        public IntelligenceSnapshot GetIntelligenceSnapshot() => _engine.GetIntelligenceSnapshot();
+
+        public void SetAutopilotEnabled(bool enabled)
+        {
+            try
+            {
+                _engine.SetAutopilotEnabled(enabled);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "LocalGateway.SetAutopilotEnabled", ex);
+            }
+        }
+
+        public string InjectFault(FaultScenario scenario)
+        {
+            try
+            {
+                return _engine.InjectFault(scenario);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "LocalGateway.InjectFault", ex);
+                return $"Fault injection failed: {ex.Message}";
+            }
+        }
+
+        public void ClearFaults()
+        {
+            try
+            {
+                _engine.ClearFaults();
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "LocalGateway.ClearFaults", ex);
+            }
+        }
+
+        public bool RequestMaintenance(int machineId)
+        {
+            try
+            {
+                return _engine.RequestMaintenance(machineId);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "LocalGateway.RequestMaintenance", ex);
+                return false;
+            }
+        }
+
+        public string AskCopilot(string question)
+        {
+            return _errorHandler.ExecuteWithRetry(
+                () => _engine.AskCopilot(question),
+                "LocalGateway.AskCopilot",
+                ErrorCategory.Gateway,
+                fallback: "Copilot unavailable.")!;
+        }
+
+        public string GetCopilotContextJson()
+        {
+            return _errorHandler.ExecuteWithRetry(
+                () => _engine.GetCopilotContextJson(),
+                "LocalGateway.GetCopilotContextJson",
+                ErrorCategory.Gateway,
+                fallback: "{}")!;
         }
 
         // --- IDataGatewayService ---

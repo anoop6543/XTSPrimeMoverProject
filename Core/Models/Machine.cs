@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace XTSPrimeMoverProject.Models
 {
@@ -20,6 +21,24 @@ namespace XTSPrimeMoverProject.Models
         Reset
     }
 
+    public enum MaintenanceMode
+    {
+        /// <summary>Available for production.</summary>
+        None,
+        /// <summary>Maintenance requested; no new parts accepted, current part drains out.</summary>
+        Pending,
+        /// <summary>Technician working on the cell; machine is down.</summary>
+        InProgress
+    }
+
+    public enum MaintenanceKind
+    {
+        /// <summary>Planned / predictive maintenance (short, scheduled).</summary>
+        Planned,
+        /// <summary>Unplanned breakdown repair (long).</summary>
+        Breakdown
+    }
+
     public class Machine
     {
         public int MachineId { get; set; }
@@ -36,6 +55,23 @@ namespace XTSPrimeMoverProject.Models
         public bool FaultActive { get; set; }
         public string FaultMessage { get; set; }
         public double RotaryAngle { get; set; }
+
+        /// <summary>
+        /// Outfeed nest: a finished part leaves the last station into this buffer so the machine can
+        /// accept the next part. The cell robot transfers it onto a docked mover (part swap).
+        /// </summary>
+        public Part? OutfeedNest { get; set; }
+
+        public MaintenanceMode Maintenance { get; set; }
+        public MaintenanceKind MaintenanceKind { get; set; }
+        public double MaintenanceDurationSeconds { get; set; }
+        public double MaintenanceRemainingSeconds { get; set; }
+        public string MaintenanceReason { get; set; } = string.Empty;
+        public int MaintenanceCount { get; set; }
+        public int BreakdownCount { get; set; }
+
+        /// <summary>Sum of the nominal station times: the ideal machine cycle used for OEE performance.</summary>
+        public double IdealCycleTimeSeconds => Stations.Sum(s => s.ProcessTime);
 
         public Machine(int id, string name, MachineType type, double loadAngle)
         {
@@ -57,38 +93,46 @@ namespace XTSPrimeMoverProject.Models
             InitializeStations();
         }
 
+        /// <summary>
+        /// EV battery module line (12S prismatic module):
+        /// M0 stacks/compresses the cells and laser-welds the busbars,
+        /// M1 mounts and fastens the cell monitoring unit (CMU) board,
+        /// M2 runs 3D vision / gauging / weighing,
+        /// M3 runs the end-of-line electrical tests and laser-marks the module.
+        /// Defect rates are the legacy fallback only; quality is decided by measured values.
+        /// </summary>
         private void InitializeStations()
         {
             switch (Type)
             {
                 case MachineType.LaserWelding:
-                    Stations.Add(new Station(0, "Pre-Heat", StationType.Assembly, 2.0));
-                    Stations.Add(new Station(1, "Laser Weld", StationType.Welding, 3.5, 0.03));
-                    Stations.Add(new Station(2, "Cool Down", StationType.Assembly, 2.0));
-                    Stations.Add(new Station(3, "Weld Inspection", StationType.Inspection, 1.5, 0.02));
+                    Stations.Add(new Station(0, "Cell Stack Compression", StationType.Assembly, 2.0, 0.005));
+                    Stations.Add(new Station(1, "Busbar Laser Weld", StationType.Welding, 3.5, 0.01));
+                    Stations.Add(new Station(2, "Weld Cool-Down", StationType.Assembly, 2.0, 0.002));
+                    Stations.Add(new Station(3, "Weld Seam OCT Scan", StationType.Inspection, 1.5, 0.005));
                     break;
 
                 case MachineType.PrecisionAssembly:
-                    Stations.Add(new Station(0, "Component Pick", StationType.Assembly, 1.5));
-                    Stations.Add(new Station(1, "Precision Place", StationType.Assembly, 2.5, 0.04));
-                    Stations.Add(new Station(2, "Screw Drive", StationType.Assembly, 2.0, 0.03));
-                    Stations.Add(new Station(3, "Torque Verify", StationType.Testing, 1.5, 0.02));
-                    Stations.Add(new Station(4, "Vision Check", StationType.Inspection, 1.0, 0.01));
+                    Stations.Add(new Station(0, "CMU Board Pick", StationType.Assembly, 1.5, 0.002));
+                    Stations.Add(new Station(1, "CMU Board Place", StationType.Assembly, 2.5, 0.005));
+                    Stations.Add(new Station(2, "Screw Fastening", StationType.Assembly, 2.0, 0.008));
+                    Stations.Add(new Station(3, "Torque/Angle Verify", StationType.Testing, 1.5, 0.004));
+                    Stations.Add(new Station(4, "Connector Vision Check", StationType.Inspection, 1.0, 0.003));
                     break;
 
                 case MachineType.QualityInspection:
-                    Stations.Add(new Station(0, "Visual Inspect", StationType.Inspection, 2.0, 0.05));
-                    Stations.Add(new Station(1, "Dimension Check", StationType.Inspection, 2.5, 0.04));
-                    Stations.Add(new Station(2, "Surface Scan", StationType.Inspection, 2.0, 0.03));
-                    Stations.Add(new Station(3, "Weight Check", StationType.Testing, 1.0, 0.01));
+                    Stations.Add(new Station(0, "3D Vision Inspect", StationType.Inspection, 2.0, 0.004));
+                    Stations.Add(new Station(1, "Module Height Gauge", StationType.Inspection, 2.5, 0.004));
+                    Stations.Add(new Station(2, "Busbar Surface Scan", StationType.Inspection, 2.0, 0.003));
+                    Stations.Add(new Station(3, "Module Weight Check", StationType.Testing, 1.0, 0.002));
                     break;
 
                 case MachineType.FunctionalTesting:
-                    Stations.Add(new Station(0, "Power-On Test", StationType.Testing, 3.0, 0.06));
-                    Stations.Add(new Station(1, "Function Test", StationType.Testing, 4.0, 0.07));
-                    Stations.Add(new Station(2, "Stress Test", StationType.Testing, 3.5, 0.05));
-                    Stations.Add(new Station(3, "Final Verify", StationType.Testing, 2.0, 0.02));
-                    Stations.Add(new Station(4, "Label Print", StationType.Packaging, 1.0));
+                    Stations.Add(new Station(0, "HiPot Insulation Test", StationType.Testing, 3.0, 0.004));
+                    Stations.Add(new Station(1, "OCV & DC-IR Test", StationType.Testing, 4.0, 0.006));
+                    Stations.Add(new Station(2, "BMS Balancing Test", StationType.Testing, 3.5, 0.005));
+                    Stations.Add(new Station(3, "EOL Final Verify", StationType.Testing, 2.0, 0.003));
+                    Stations.Add(new Station(4, "Laser Mark DMC", StationType.Packaging, 1.0, 0.002));
                     break;
             }
         }
@@ -103,7 +147,7 @@ namespace XTSPrimeMoverProject.Models
 
         public bool CanAcceptPart()
         {
-            if (!IsOperational)
+            if (!IsOperational || Maintenance != MaintenanceMode.None)
             {
                 return false;
             }
@@ -112,6 +156,19 @@ namespace XTSPrimeMoverProject.Models
             // Prevent loading a new part until all stations are empty.
             return Stations.TrueForAll(s => s.CurrentPart == null && s.Status == StationStatus.Idle);
         }
+
+        /// <summary>
+        /// A robot already holding a part for this machine may still place it while maintenance is only
+        /// pending (the part drains through first); it must not place during the maintenance itself.
+        /// </summary>
+        public bool CanCompleteInboundTransfer()
+        {
+            return IsOperational
+                   && Maintenance != MaintenanceMode.InProgress
+                   && Stations.TrueForAll(s => s.CurrentPart == null && s.Status == StationStatus.Idle);
+        }
+
+        public bool IsEmpty => Stations.TrueForAll(s => s.CurrentPart == null);
 
         public bool HasCompletedPartReady()
         {

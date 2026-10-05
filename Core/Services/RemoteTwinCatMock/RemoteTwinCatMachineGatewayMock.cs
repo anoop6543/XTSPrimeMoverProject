@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using XTSPrimeMoverProject.Models;
+using XTSPrimeMoverProject.Services.Intelligence;
 
 namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
 {
@@ -115,6 +116,54 @@ namespace XTSPrimeMoverProject.Services.RemoteTwinCatMock
                 ErrorCategory.Gateway,
                 fallback: Array.Empty<SafetyGateStatus>())!;
         }
+
+        // --- AI intelligence layer (queries are fast reads, commands cross the remote boundary) ---
+
+        public double SimulationTimeSeconds => _inner.SimulationTimeSeconds;
+        public bool AutopilotEnabled => _inner.AutopilotEnabled;
+
+        public IntelligenceSnapshot GetIntelligenceSnapshot() => _inner.GetIntelligenceSnapshot();
+
+        public void SetAutopilotEnabled(bool enabled)
+        {
+            DispatchWithLatency(() => _inner.SetAutopilotEnabled(enabled));
+        }
+
+        public string InjectFault(FaultScenario scenario)
+        {
+            DispatchWithLatency(() => _inner.InjectFault(scenario));
+            return $"{scenario} dispatched to remote runtime ({_commandLatencyMs} ms).";
+        }
+
+        public void ClearFaults()
+        {
+            DispatchWithLatency(() => _inner.ClearFaults());
+        }
+
+        public bool RequestMaintenance(int machineId)
+        {
+            try
+            {
+                SimulateNetworkLatencySync();
+                return _inner.RequestMaintenance(machineId);
+            }
+            catch (Exception ex)
+            {
+                _errorHandler.ReportException(ErrorCategory.Gateway, "RemoteMock.RequestMaintenance", ex);
+                return false;
+            }
+        }
+
+        public string AskCopilot(string question)
+        {
+            return _errorHandler.ExecuteWithRetry(
+                () => _inner.AskCopilot(question),
+                "RemoteMock.AskCopilot",
+                ErrorCategory.Gateway,
+                fallback: "Copilot unavailable (remote gateway).")!;
+        }
+
+        public string GetCopilotContextJson() => _inner.GetCopilotContextJson();
 
         private void DispatchWithLatency(Action command)
         {

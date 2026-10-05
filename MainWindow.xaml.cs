@@ -29,7 +29,7 @@ namespace XTSPrimeMoverProject
 
             try
             {
-                var engine = new Services.XTSSimulationEngine();
+                var engine = new Services.XTSSimulationEngine(new Infrastructure.WpfSimulationDispatcher(Dispatcher));
                 _engine = engine;
                 var localGateway = new Services.LocalSimulationServiceGateway(engine);
 

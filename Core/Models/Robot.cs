@@ -20,10 +20,20 @@ namespace XTSPrimeMoverProject.Models
         public int RobotId { get; set; }
         public string Name { get; set; }
         public RobotState State { get; set; }
+        /// <summary>Gripper A.</summary>
         public Part? HeldPart { get; set; }
+
+        /// <summary>Gripper B of the dual gripper: holds the finished part during a raw/finished swap at the mover.</summary>
+        public Part? SecondaryHeldPart { get; set; }
+
+        /// <summary>True while the robot waits at the dock with a finished part, ready for the next mover.</summary>
+        public bool IsStagedAtDock { get; set; }
         public int AssignedMachineId { get; set; }
         public double ActionProgress { get; set; }
         public double ActionTime { get; set; }
+
+        /// <summary>Nominal time per transfer step; ActionTime = BaseActionTime x gripper health factor.</summary>
+        public double BaseActionTime { get; set; }
 
         public Robot(int id, int machineId)
         {
@@ -33,14 +43,17 @@ namespace XTSPrimeMoverProject.Models
             State = RobotState.Idle;
             HeldPart = null;
             ActionProgress = 0;
-            ActionTime = 0.8;
+            BaseActionTime = 0.8;
+            ActionTime = BaseActionTime;
         }
 
         public void Update(double deltaTime)
         {
             if (State != RobotState.Idle)
             {
-                ActionProgress += deltaTime;
+                // Progress saturates at the step time: a robot waiting on an interlock shows a frozen
+                // signature, which is what the robot watchdog looks for.
+                ActionProgress = Math.Min(ActionTime, ActionProgress + deltaTime);
             }
         }
 
@@ -87,6 +100,13 @@ namespace XTSPrimeMoverProject.Models
         {
             HeldPart = part;
             State = RobotState.PickingFromMachine;
+            ActionProgress = 0;
+        }
+
+        /// <summary>Explicit transition used by the cell controller.</summary>
+        public void TransitionTo(RobotState state)
+        {
+            State = state;
             ActionProgress = 0;
         }
 
