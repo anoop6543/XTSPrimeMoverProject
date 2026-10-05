@@ -22,6 +22,8 @@ namespace XTSPrimeMoverProject
     public partial class MainWindow : Window
     {
         private Services.XTSSimulationEngine? _engine;
+        private Infrastructure.DigitalTwinWebHost? _twinHost;
+        private Services.IMachineGatewayService? _machineGateway;
 
         public MainWindow()
         {
@@ -49,6 +51,16 @@ namespace XTSPrimeMoverProject
                 DataContext = viewModel;
 
                 viewModel.ExecutionLogs.CollectionChanged += OnExecutionLogsCollectionChanged;
+
+                // 3D views are view-layer adapters fed from the same gateway (no process logic here).
+                _machineGateway = machineGateway;
+                _twinHost = new Infrastructure.DigitalTwinWebHost(TwinWebView, machineGateway);
+                _twinHost.StatusChanged += (_, status) => Dispatcher.BeginInvoke(() =>
+                {
+                    TwinStatusText.Text = status;
+                    TwinStatusBanner.Visibility = status.StartsWith("Live", StringComparison.Ordinal) ? Visibility.Collapsed : Visibility.Visible;
+                });
+                machineGateway.StateChanged += OnGatewayStateChanged;
                 Closed += OnWindowClosed;
             }
             catch (Exception ex)
@@ -63,6 +75,32 @@ namespace XTSPrimeMoverProject
                     "XTS Prime Mover – Initialization Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+            }
+        }
+
+        private void OnGatewayStateChanged(object? sender, EventArgs e)
+        {
+            if (_machineGateway == null)
+            {
+                return;
+            }
+
+            _twinHost?.PushFrame();
+            NativeView.Update(_machineGateway);
+        }
+
+        private void OnNativeCameraClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement { Tag: string preset })
+            {
+                if (preset == "tour")
+                {
+                    NativeView.StartTour();
+                }
+                else
+                {
+                    NativeView.SetPreset(preset);
+                }
             }
         }
 

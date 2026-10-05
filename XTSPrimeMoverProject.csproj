@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
-    <PackageReference Include="HelixToolkit.Wpf" Version="2.27.3" />
+    <PackageReference Include="HelixToolkit.Core.Wpf" Version="2.27.3" />
   </ItemGroup>
 
 </Project>

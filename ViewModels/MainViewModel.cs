@@ -45,6 +45,10 @@ namespace XTSPrimeMoverProject.ViewModels
         public ObservableCollection<string> DbTables { get; }
         public ObservableCollection<OrchestrationStepEditItem> OrchestrationSteps { get; }
         public ObservableCollection<SafetyGateStatusItemViewModel> SafetyGates { get; }
+        public IntelligenceViewModel Intelligence { get; }
+
+        /// <summary>Gateway for view-layer adapters (3D digital twin hosts).</summary>
+        public IMachineGatewayService MachineGateway => _machine;
         private DataView _dbTableRowsView = CreateEmptyDbTableView();
 
         public DataView DbTableRowsView
@@ -230,6 +234,7 @@ namespace XTSPrimeMoverProject.ViewModels
             OrchestrationSteps = new ObservableCollection<OrchestrationStepEditItem>();
             SafetyGates = new ObservableCollection<SafetyGateStatusItemViewModel>();
             DbTableRowsView = CreateEmptyDbTableView();
+            Intelligence = new IntelligenceViewModel(_machine);
 
             StartCommand = new RelayCommand(Start, () => !IsRunning);
             StopCommand = new RelayCommand(Stop, () => IsRunning);
@@ -639,6 +644,7 @@ namespace XTSPrimeMoverProject.ViewModels
                 }
 
                 RefreshWatchdogStatuses();
+                Intelligence.Refresh();
 
                 UpdateStatus();
                 OnPropertyChanged(nameof(TotalPartsProduced));
@@ -704,6 +710,7 @@ namespace XTSPrimeMoverProject.ViewModels
                 _machine.SetSimulationSpeed(_simulationSpeed);
                 LoadDbTables();
                 LoadOrchestrationSteps();
+                Intelligence.Reinitialize();
             }
             catch (Exception ex)
             {

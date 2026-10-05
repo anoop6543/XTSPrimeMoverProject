@@ -6,9 +6,9 @@ export const materials = {};
 
 export function createMaterials() {
   const m = materials;
-  m.aluminium = new THREE.MeshStandardMaterial({ color: 0xc9ced6, metalness: 0.9, roughness: 0.32 });
+  m.aluminium = new THREE.MeshStandardMaterial({ color: 0xc9ced6, metalness: 0.9, roughness: 0.42 });
   m.aluminiumDark = new THREE.MeshStandardMaterial({ color: 0x8a919b, metalness: 0.85, roughness: 0.4 });
-  m.aluminiumMatte = new THREE.MeshStandardMaterial({ color: 0xa9afb7, metalness: 0.75, roughness: 0.62 }); // bead-blasted plates
+  m.aluminiumMatte = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.5, roughness: 0.8 }); // bead-blasted plates
   m.anodizedBlack = new THREE.MeshStandardMaterial({ color: 0x15171a, metalness: 0.6, roughness: 0.45 });
   m.steel = new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.95, roughness: 0.25 });
   m.cabinet = new THREE.MeshPhysicalMaterial({ color: 0xaeb3b0, metalness: 0.05, roughness: 0.62, clearcoat: 0.25, clearcoatRoughness: 0.5 });
@@ -234,12 +234,45 @@ function makeSign(text, x, y, z) {
   return mesh;
 }
 
+/**
+ * Image-based lighting source shaped like a factory hall: dark floor, dim walls, broad high-bay
+ * light panels. (A generic "room" environment has small, very hot light boxes that turn polished
+ * aluminium into glare.)
+ */
+export function createFactoryEnvironment() {
+  const env = new THREE.Scene();
+  const dome = new THREE.SphereGeometry(30, 48, 24);
+  const colors = [];
+  const pos = dome.attributes.position;
+  const floor = new THREE.Color(0.03, 0.03, 0.035);
+  const wall = new THREE.Color(0.11, 0.12, 0.14);
+  const ceiling = new THREE.Color(0.2, 0.22, 0.25);
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const t = (pos.getY(i) + 30) / 60;
+    if (t < 0.5) c.copy(floor).lerp(wall, t / 0.5); else c.copy(wall).lerp(ceiling, (t - 0.5) / 0.5);
+    colors.push(c.r, c.g, c.b);
+  }
+  dome.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  env.add(new THREE.Mesh(dome, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  const panelMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.65, 1.75), side: THREE.DoubleSide });
+  for (const x of [-12, -4, 4, 12]) {
+    for (const z of [-10, 0, 10]) {
+      const panel = new THREE.Mesh(new THREE.PlaneGeometry(5, 2.2), panelMat);
+      panel.rotation.x = Math.PI / 2;
+      panel.position.set(x, 14, z);
+      env.add(panel);
+    }
+  }
+  return env;
+}
+
 export function buildLights(scene) {
-  const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x1c1a17, 0.42);
+  const hemi = new THREE.HemisphereLight(0xcfe0ff, 0x1c1a17, 0.55);
   scene.add(hemi);
 
-  const key = new THREE.DirectionalLight(0xfff3e2, 2.0);
-  key.position.set(4.5, 9, 5.5);
+  const key = new THREE.DirectionalLight(0xfff3e2, 1.75);
+  key.position.set(3.5, 10, 2.0); // high-bay: steep so flat plates do not glare into eye-level cameras
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
   key.shadow.camera.left = -6;

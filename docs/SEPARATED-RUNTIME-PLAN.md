@@ -82,11 +82,11 @@ Use **service contracts** at boundaries so transport can change later without re
   - **Control**: keep interlock validation at machine side and return explicit gate results.
 
 ## 7. Immediate Deliverables (this implementation pass)
-- `Services/HmiServiceContracts.cs` added and split into:
+- `Core/Services/HmiServiceContracts.cs` added and split into:
   - `IMachineGatewayService`
   - `IDataGatewayService`
-- `Services/LocalSimulationServiceGateway.cs` added and updated to implement both interfaces.
-- `Services/RemoteTwinCatMock/RemoteTwinCatMachineGatewayMock.cs` added for machine-boundary mock integration.
+- `Core/Services/LocalSimulationServiceGateway.cs` added and updated to implement both interfaces.
+- `Core/Services/RemoteTwinCatMock/RemoteTwinCatMachineGatewayMock.cs` added for machine-boundary mock integration.
 - `MainViewModel` refactored to consume machine + data gateway interfaces.
 - Composition root updated in `MainWindow.xaml.cs` with runtime toggle-driven machine gateway selection.
 

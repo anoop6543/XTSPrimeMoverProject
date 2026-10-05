@@ -30,9 +30,16 @@ namespace XTSPrimeMoverProject.Services
                 return;
             }
 
-            if (!_queue.TryAdd(writeOperation, millisecondsTimeout: 100))
+            try
             {
-                System.Diagnostics.Debug.WriteLine("[DatabaseWriteQueue] Queue full, dropping write operation.");
+                if (!_queue.TryAdd(writeOperation, millisecondsTimeout: 100))
+                {
+                    System.Diagnostics.Debug.WriteLine("[DatabaseWriteQueue] Queue full, dropping write operation.");
+                }
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
+            {
+                // Shutdown raced with this write (adding completed or queue disposed): drop it.
             }
         }
 
@@ -52,9 +59,9 @@ namespace XTSPrimeMoverProject.Services
                     }
                 }
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or InvalidOperationException)
             {
-                // Normal shutdown
+                // Normal shutdown – never let a background-thread exception take the process down.
             }
         }
 
@@ -70,7 +77,10 @@ namespace XTSPrimeMoverProject.Services
 
             if (!_consumerThread.Join(TimeSpan.FromSeconds(5)))
             {
-                System.Diagnostics.Debug.WriteLine("[DatabaseWriteQueue] Consumer thread did not exit in time.");
+                // Still draining a backlog: leave the collection alive for the (background) consumer
+                // instead of disposing it underneath it, which used to crash the process on shutdown.
+                System.Diagnostics.Debug.WriteLine("[DatabaseWriteQueue] Consumer thread did not exit in time; leaving it to finish in the background.");
+                return;
             }
 
             _queue.Dispose();

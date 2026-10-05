@@ -1,129 +1,134 @@
-# XTS Prime Mover Simulation - Architecture
+# XTS Prime Mover – EV Battery Module Line · Architecture
 
 ## 1. Purpose
-This document describes the current architecture of the Beckhoff-style XTS simulation after iterative upgrades to:
-- PLC-style machine control
-- mover queue behavior
-- watchdog self-recovery
-- operator diagnostics/HMI explainability
-- SQLite traceability
+
+Physics-true simulation of a Beckhoff-style XTS line assembling 12S prismatic EV battery modules, with an
+AI intelligence layer (digital twins, predictive maintenance, SPC, OEE, bottleneck detection, energy,
+autopilot, copilot), a live Three.js 3D digital twin and a WPF HMI. No hardware is required; every behaviour
+is produced by the runtime core and can be verified headless.
 
 ---
 
-## 2. High-Level Design
+## 2. Solution layout
 
-The solution follows **service-driven simulation + MVVM visualization** and is being modernized toward **split runtime boundaries**.
+| Project | Target | Role |
+|---|---|---|
+| `Core/XTSPrimeMoverProject.Core.csproj` | `net10.0` | Models, PLC/motion FBs, engine, gateways, AI layer, SQLite logging, 3D frame contract. **No WPF.** |
+| `XTSPrimeMoverProject.csproj` | `net10.0-windows` (WPF) | HMI: views, view models, WPF controls, WebView2 + HelixToolkit 3D hosts. References Core. |
+| `tests/XTSPrimeMoverProject.Tests` | `net10.0` | xUnit: statistics, analytics, whole-line simulation and fault scenarios on the real engine. |
+| `tools/TwinRecorder` | `net10.0` | Runs the engine headless and exports `TwinFrame` JSON for the 3D twin / videos. |
+| `tools/video` | Node | Playwright capture of `Web/twin` + ffmpeg encoding (`render-all.sh`). |
+| `Web/twin` | static web | Three.js digital twin (vendored three.js r186, offline). Copied to the WPF output. |
+
+The WPF project excludes `Core/`, `tests/`, `tools/` from its own compile items (`Compile Remove`) and references Core.
+Namespaces are unchanged (`XTSPrimeMoverProject.Models`, `XTSPrimeMoverProject.Services`).
 
 ```text
-Current (in-process)
-MainWindow (View / visualization)
-   ↕ binding
-ViewModels (Main, Mover, Machine, Station, Robot)
-   ↕ projection only
-Services (XTSSimulationEngine, SimulationDataLogger, PLC/Motion FBs)
-   ↕ orchestration + persistence
-Models (Part, Mover, Robot, Machine, Station)
-
-Target (separated runtimes)
-Beckhoff/TwinCAT machine runtime  <-->  HMI runtime  <-->  Data service runtime
+Core (net10.0)                                             HMI (WPF)
+Models ── Station / Machine / Mover / Robot / Part           MainWindow.xaml (tabs, 2D canvas, AI Command Center)
+Services                                                     ViewModels (Main, Intelligence, Machine, Station, Mover, Robot)
+ ├ XTSSimulationEngine  ◄── ISimulationDispatcher ◄──────── Infrastructure/WpfSimulationDispatcher
+ ├ TwinCAT motion + PLC FBs                                  Infrastructure/DigitalTwinWebHost ──► WebView2 ──► Web/twin
+ ├ ProductionOrchestration                                   Controls/NativeLineView3D (HelixToolkit)
+ ├ Intelligence/ (LineIntelligenceHub …)                     Controls/TrendChart, RingGauge
+ ├ DigitalTwin3D/TwinFrame ─────────────────────────────►  (also used by tools/TwinRecorder)
+ ├ IMachineGatewayService / IDataGatewayService
+ └ SimulationDataLogger → DatabaseWriteQueue → SQLite
 ```
 
-Core rule: process logic remains in Services/Models, not XAML.
-Service boundaries are now first-class so transport can move from local to remote without UI rewrite.
+Core rule (unchanged): process logic lives in `Core`, views only project state; the WebView2/Helix hosts are
+view-layer adapters that read the gateway.
 
 ---
 
-## 3. Layers
+## 3. Runtime model (`XTSSimulationEngine`)
 
-## 3.1 Domain Models
-- `Part`: lifecycle, tracking, status, history, routing (`NextMachineIndex`)
-- `Mover`: carrier position/state/target station/loaded part
-- `Robot`: transfer state machine with timed action progression
-- `Machine`: station chain + sequencer-related status fields
-- `Station`: processing state, ET/PT timing, defect probability
+### 3.1 Fixed PLC cycle
+The wall-clock timer (50 ms) only feeds time in; the engine integrates in **fixed 20 ms cycles**
+(`RunFixedSteps`) so behaviour is identical at 0.1×–5× speed and in headless runs (`AdvanceManually`).
+Per cycle: machines → robots → robot cells → entry/exit docks → mover motion → traceability → watchdogs →
+snapshots → zone blinkers → intelligence.
 
-## 3.2 Service Layer
+### 3.2 Transport
+- Mover position is degrees on a 6 m stadium loop (`XtsTrackGeometry` converts to metres).
+- `FbXtsMoverAxis` runs MC_Power + jerk-limited MC_MoveVelocity (160 °/s² ≈ 2.7 m/s², 4000 °/s³).
+- The planner computes a velocity limit = min(cruise, braking curve to the next stop, gap curve to the mover ahead)
+  and clamps position so movers **never overtake or touch** (12° ≈ 0.20 m pitch).
+- Stop points: machine docks (45/135/225/315°), entry (205°), exit (0°). A mover stops only if it has business there:
+  its part targets that machine and the machine is available; it is the reserved empty mover for a pickup; it is the
+  reserved empty mover for the entry; or it carries a finished (Good/Bad) part to the exit.
+- Loaded movers whose target machine is under maintenance/faulted **recirculate** instead of blocking the dock.
 
-### `XTSSimulationEngine`
-Owns runtime orchestration:
-- timer-driven updates
-- mover state transitions + queue spacing
-- robot transfers (mover↔machine)
-- machine cycle execution via FBs
-- part loading/unloading/exit accounting
-- watchdog detection + controlled recovery
-- execution logging events
-- zone activity blink triggers (entry/exit)
-- simulation speed scaling
+### 3.3 Robot cells (dual gripper, outfeed nest)
+- A finished part leaves the last station into the machine's `OutfeedNest` (internal shuttle), so the machine can
+  accept the next part immediately.
+- Cell controller priorities: (1) load a raw part from a docked mover (machine first – protects the constraint),
+  (2) pre-fetch the nest part and **stage** it at the dock, (3) release movers with nothing to do.
+- Staged robot + docked empty mover → place (≈0.8 s dwell). Staged robot + docked loaded mover → **swap**: gripper A
+  picks the raw part, gripper B places the finished one (≈1.6 s dwell), then the robot loads the machine.
+- Deadlock freedom on a single no-overtaking loop: a docked mover only waits for its own machine to finish
+  processing; the nest is always emptied by the next service.
 
-### PLC/Motion Function Blocks
-- `Services/TwinCATMotionFunctionBlocks.cs`
-  - `McPowerFb`, `McMoveVelocityFb`, `McHaltFb`, `FbXtsMoverAxis`
-- `Services/TwinCATPlcFunctionBlocks.cs`
-  - `TonFb`, `AlarmLatchFb`, `FbMachineCycle`
+### 3.4 Quality
+`Station` consults an `IStationProcessModel` (implemented by `LineIntelligenceHub`) for its cycle-time factor and its
+measurement. Each characteristic (`EvModuleQualityCatalog`) has nominal, spec limits and a qualified Cpk; healthy
+sigma = distance-to-limit / (3·Cpk). Degradation shifts the mean and inflates sigma. Out-of-spec → `HasDefect`; the final
+machine resolves Good/Bad. Measurements are appended to the part history (and thus to `PartEvents`).
 
-Machine sequencer states:
-- `Init`, `Ready`, `Run`, `Fault`, `Reset`
+### 3.5 Maintenance lifecycle
+`Machine.Maintenance` = None → Pending (no new parts, current part drains, nest emptied, robot clear) → InProgress
+(one technician; breakdowns have priority) → None (twin restored, detectors recommissioned, RUL reset).
+Breakdowns occur when hidden damage reaches 1.0: parts in the cell are damaged, repair ≈ 35 s vs 9 s planned.
 
-### Watchdog behavior
-Root-cause codes and counters are tracked and exposed:
-- machine stall codes
-- robot stall codes
-- mover stall codes
-- rehome/scrap events
-
-### `SimulationDataLogger`
-SQLite persistence for events/results/alarms/errors/snapshots.
-
-## 3.3 Presentation Layer
-
-### ViewModels
-- `MainViewModel`: runtime composition root; commands; aggregate metrics; speed control; watchdog status feed; gateway mode status
-- `MoverViewModel`: operator explanation fields (`FlowMeaning`, `WaitReason`, target info)
-- `MachineViewModel`: action and ET/PT summaries plus assigned-robot transfer visualization for machine tabs
-- `StationViewModel`: per-station ET/PT diagnostics and operation-centric task descriptors
-- `RobotViewModel`: transfer state, direction, stage, progress, canvas coordinates, and transfer arrowhead points
-
-### MainWindow.xaml
-- Beckhoff-like oval track rendering (lane/seam aesthetics)
-- machine mini-HMIs offset outward from track for readability
-- robot canvas overlays with moving glyphs, animated dashed transfer lines, and direction arrowheads
-- entry/load and exit/unload zones + blinkers
-- right-side Line HMI diagnostics sections
-- enhanced station cards on machine tabs with live task-centric visuals and activity glyph animations
-- bottom execution logger with auto-scroll to latest event
+### 3.6 Watchdogs
+Machine stall (14 s), robot stall (9 s; staged robots are exempt – they are waiting, not stalled), docked-mover stall
+(45 s → released to recirculate). Codes/counters as before (`WD-*`).
 
 ---
 
-## 4. Runtime Sequence (current)
+## 4. AI intelligence layer (`Core/Services/Intelligence`)
 
-1. Eligible empty mover reaches entry zone.
-2. New part loads onto mover (subject to WIP/empty-carrier constraints).
-3. Mover queues/travels to target machine load interface.
-4. Robot transfers part into machine.
-5. Machine station chain processes and indexes through steps.
-6. Robot returns processed part to mover.
-7. Route continues until M3 completion.
-8. Final quality determines Good/Bad exit.
-9. Exit zone discharge updates counters/results/logs.
+| File | Responsibility |
+|---|---|
+| `LineIntelligenceHub.cs` | Orchestrates everything per cycle; implements `IStationProcessModel`; maintenance lifecycle; fault injection; publishes immutable `IntelligenceSnapshot`s |
+| `DigitalTwin.cs` | `MachineDigitalTwin` (hidden damage on a P-F curve, thermal model + healthy shadow model, sensors), `RobotDigitalTwin` (vacuum) |
+| `QualityCatalog.cs` | EV module characteristics, spec limits, Cpk, failure modes and sensor signatures |
+| `AnomalyDetector.cs` | Residual detectors: commissioning fingerprint, EWMA (exact limits) + two-sided CUSUM, adaptive baseline, context-aware running/idle |
+| `RulEstimator.cs` | Exponential degradation (ln(y+Φ) linear in operating time), multi-horizon LSQ, cross-horizon confidence |
+| `SpcMonitor.cs` | Individuals chart, Western Electric 1–4 + Nelson trend, rolling Cpk |
+| `ProductionAnalytics.cs` | `OeeTracker` (ISO 22400), `BottleneckDetector` (active-period method), `EnergyMonitor` |
+| `AutopilotController.cs` | Critical-WIP release (W₀ = r_b × T₀, +35 %), decision log |
+| `CopilotReasoner.cs` | Ranked insights, offline Q&A, grounded JSON for the LLM |
+| `ClaudeCopilotClient.cs` | Optional Claude copilot (official Anthropic SDK, `claude-opus-5-5`, server-side refusal fallback) |
+| `Statistics.cs` | Normal CDF/inverse, EWMA, ring buffer, regression, Holt forecaster |
+
+Information discipline: the AI only reads sensors and measurements. True damage is exposed only as
+"twin ground truth" in the HMI for validation.
+
+Predictive maintenance trigger (autopilot): RUL < max(150 s, 2.5 × (drain + PM time)) with confidence ≥ 0.45, or
+health < 42 %, or an SPC rule on the key characteristic **and** a sensor anomaly, or a degraded robot gripper.
 
 ---
 
-## 5. Observability / Debug Capability
+## 5. 3D digital twin
 
-Implemented operator debug signals:
-- mover explanation text for wait/flow reason
-- machine action + ET/PT snapshot
-- station ET/PT details
-- execution logger stream
-- watchdog status panel (count, last object, last trigger/message)
-- entry/exit activity blink indicators
+- Contract: `TwinFrame` (movers, machines with stations/nest/maintenance/health, robots with both grippers, KPIs,
+  alerts, decisions). Built by `TwinFrameBuilder.Build(IMachineGatewayService)`.
+- Live: `DigitalTwinWebHost` maps `Web/twin` to `https://twin.local`, posts a frame every ≈66 ms; the page renders
+  ≈100 ms behind and interpolates (mover angles with wrap-around, robot/station progress).
+- Replay: `?replay=frames.json` (recorded by `tools/TwinRecorder`). Capture: `&capture=1&tour=overview|stations|ai`
+  exposes `window.twinCapture.renderFrame(i)` for deterministic video rendering.
+- Scene: factory hall, custom image-based lighting, PCF shadows, bloom only above HDR 1.6 (true emitters), XTS modules
+  with LEDs, movers with rollers, 6-axis robots with analytic two-link IK, rotary dials with process tools
+  (laser with beam, nutrunner, structured-light 3D vision, laser line scanner, HiPot beacon), andon towers, live cell
+  HMI canvases, technician during maintenance, CSS2D labels.
+- `NativeLineView3D` (HelixToolkit) is a no-runtime fallback with presets and a fly-through tour.
 
 ---
 
 ## 6. Error Handling Architecture
 
-The application uses a centralized error handling mechanism provided by `Services/ErrorHandlingService.cs`.
+The application uses a centralized error handling mechanism provided by `Core/Services/ErrorHandlingService.cs`.
 
 ### Layers
 
@@ -155,68 +160,37 @@ A file-based `crash.log` is written to the application base directory for any un
 
 ## 7. Threading Architecture
 
-The application separates concerns across dedicated threads to keep the UI responsive and prevent I/O from blocking simulation computation.
-
-### Thread Topology
-
 | Thread | Responsibility | Mechanism |
 |---|---|---|
-| **UI thread** | WPF rendering, data binding, command handlers, `ObservableCollection` updates | WPF Dispatcher |
-| **Simulation thread** | Engine tick computation (movers, robots, machines, watchdogs) | `System.Threading.Timer` callback via thread pool |
-| **DB-WriteQueue thread** | All database INSERT/UPDATE operations | Dedicated `Thread` consuming a `BlockingCollection<Action>` |
-| **Thread pool (ad-hoc)** | CSV export, network latency simulation in remote mock | `Task.Run` |
+| UI thread | WPF rendering, bindings, commands, WebView2/Helix updates | WPF Dispatcher |
+| Simulation thread | Fixed-cycle engine + intelligence hub | `System.Threading.Timer` callback |
+| DB-WriteQueue thread | All SQLite writes | dedicated `Thread` + `BlockingCollection<Action>` |
+| Thread pool | CSV export, remote-mock latency, offline copilot answers, Claude requests | `Task.Run` / async |
 
-### Synchronization
-
-- **`_simulationLock`** (in `XTSSimulationEngine`) — held during the entire `Update(deltaTime)` call, and also during `Start()` / `Stop()` / `Reset()` to prevent concurrent mutation.
-- **`Interlocked._tickActive`** — re-entrancy guard preventing overlapping timer callbacks.
-- **`Dispatcher.Invoke`** — after each simulation tick, the engine synchronously marshals `StateChanged` to the UI thread, ensuring the UI reads consistent state while the engine is paused between ticks.
-- **`Dispatcher.BeginInvoke`** — used for `LogGenerated` events and `OnEngineLogGenerated` in the ViewModel to avoid blocking the simulation thread on log delivery.
-- **Value snapshots** — all `SimulationDataLogger` write methods capture scalar values from model objects *before* queuing, preventing the background writer from reading stale or torn state.
-
-### Database Write Queue
-
-`DatabaseWriteQueue` uses a producer-consumer pattern:
-- Bounded capacity of 2048 pending writes to provide back-pressure
-- Single dedicated background thread (`ThreadPriority.BelowNormal`)
-- Graceful shutdown via `CompleteAdding()` + `Join(5s)` timeout
-- Write failures are logged but do not crash the consumer thread
-
-### Remote Gateway Latency
-
-`RemoteTwinCatMachineGatewayMock` simulates network latency using `Task.Delay` instead of `Thread.Sleep`, dispatching commands to the thread pool so the UI thread is never blocked. Query methods that return values remain synchronous since they are fast in-memory reads.
-
-### Shutdown
-
-- `MainWindow.Closed` event calls `XTSSimulationEngine.Dispose()` which stops the timer and drains the DB write queue.
-- `App.OnStartup` registers global exception handlers for `DispatcherUnhandledException`, `AppDomain.UnhandledException`, and `TaskScheduler.UnobservedTaskException` with crash log persistence.
+- `_simulationLock` guards `Update`, start/stop/reset and every operator command (autopilot, fault injection,
+  maintenance requests).
+- The engine marshals `StateChanged` through `ISimulationDispatcher` (`WpfSimulationDispatcher` in the HMI,
+  `InlineSimulationDispatcher` headless) **outside** the lock, so the UI never deadlocks with the simulation thread.
+- `IntelligenceSnapshot` is immutable and published via a volatile reference: the UI reads it without locks.
+- `DatabaseWriteQueue` shutdown never disposes the collection under a still-draining consumer and swallows
+  shutdown races on both sides (previously this could crash the process on close).
 
 ---
 
 ## 8. Persistence Contract
 
-Current tables:
-- `Recipes`
-- `Parts`
-- `PartEvents`
-- `MachineRuns`
-- `Results`
-- `ProductionSnapshots`
-- `ErrorLogs`
-- `Alarms`
-
+Tables (unchanged): `Recipes`, `Parts`, `PartEvents`, `MachineRuns`, `Results`, `ProductionSnapshots`, `ErrorLogs`, `Alarms`.
+Station measurements travel in the part history (`PartEvents.ProcessStep`); AI events go to `Alarms`.
 Schema changes should be treated as explicit migrations.
 
 ---
 
-## 8. Continuation Rules (multi-machine/dev handoff)
+## 8a. Verification
 
-1. Read `README.md`, this file, then `AGENTS.md`.
-2. Keep process logic in `Services/` and `Models/`.
-3. Add ViewModel fields before changing XAML bindings.
-4. For read-only display values, use `Mode=OneWay` in XAML.
-5. Always validate with build before commit.
-6. Keep logs and watchdog messages operator-readable.
+- `dotnet test tests/XTSPrimeMoverProject.Tests` (Linux/macOS/Windows): 26 tests – statistics, SPC, anomaly detection,
+  RUL convergence, OEE, bottleneck, energy, critical WIP, 10-minute whole-line run (no collisions, no deadlock),
+  fault scenario with/without autopilot, copilot answers and LLM context, maintenance lifecycle, measurement genealogy.
+- `dotnet build XTSPrimeMoverProject.csproj -p:EnableWindowsTargeting=true` compiles the WPF HMI (incl. XAML) off Windows.
 
 ---
 
@@ -238,3 +212,7 @@ Current implementation status:
 Phase-1 keeps all behavior in one process but now uses explicit service boundaries and a swappable machine gateway implementation.
 
 See detailed plan: `docs/SEPARATED-RUNTIME-PLAN.md`.
+
+
+Since the Core split the machine runtime is a self-contained library: a future out-of-process runtime (gRPC/OPC UA
+server hosting `XTSSimulationEngine`) only needs to serve `IMachineGatewayService` and `TwinFrame`s.

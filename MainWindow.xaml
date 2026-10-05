@@ -4,8 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:XTSPrimeMoverProject"
+        xmlns:controls="clr-namespace:XTSPrimeMoverProject.Controls"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         mc:Ignorable="d"
-        Title="Beckhoff XTS Prime Mover System" Height="900" Width="1400"
+        Title="XTS EV Battery Module Line – AI Digital Twin" Height="960" Width="1600"
         Background="#1E1E1E">
     <Window.Resources>
         <local:MoverPositionConverter x:Key="MoverPositionConverter"/>
@@ -15,6 +17,54 @@
         <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:StringToBrushConverter x:Key="StringToBrushConverter"/>
+
+        <!-- AI Command Center styles -->
+        <Style x:Key="AiCard" TargetType="Border">
+            <Setter Property="Background" Value="#161D26"/>
+            <Setter Property="BorderBrush" Value="#263241"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+        <Style x:Key="AiTag" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="5,1"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+        </Style>
+        <Style x:Key="AiLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#8EA0B4"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="AiValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#E8EEF5"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="AiValueSmall" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#E8EEF5"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="AiButton" TargetType="Button">
+            <Setter Property="Background" Value="#1E3A5F"/>
+            <Setter Property="Foreground" Value="#E8EEF5"/>
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="AiChip" TargetType="Button">
+            <Setter Property="Background" Value="#1F2937"/>
+            <Setter Property="Foreground" Value="#CFE3F7"/>
+            <Setter Property="BorderBrush" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="7,2"/>
+            <Setter Property="Margin" Value="0,0,4,4"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
 
         <Style x:Key="StatusTextStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -571,7 +621,11 @@
                                                     <TextBlock Grid.Column="1" Text="{Binding EtPtCompactText, Mode=OneWay}" Foreground="#D7BA7D" FontSize="10" FontWeight="Bold"/>
                                                 </Grid>
 
-                                                <TextBlock Grid.Row="4" Text="{Binding ProgressText, Mode=OneWay}" Foreground="#B5CEA8" FontSize="10" Margin="0,0,0,4"/>
+                                                <StackPanel Grid.Row="4" Margin="0,0,0,4">
+                                                    <TextBlock Text="{Binding ProgressText, Mode=OneWay}" Foreground="#B5CEA8" FontSize="10"/>
+                                                    <TextBlock Text="{Binding MeasurementText, Mode=OneWay}" Foreground="{Binding MeasurementColor, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}" FontSize="9" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding SlowdownText, Mode=OneWay}" Foreground="#FBBF24" FontSize="9"/>
+                                                </StackPanel>
 
                                                 <!-- spacer -->
                                                 <Rectangle Grid.Row="5"/>
@@ -651,11 +705,11 @@
                 </Grid.ColumnDefinitions>
                 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="BECKHOFF XTS PRIME MOVER SYSTEM" 
+                    <TextBlock Text="XTS EV BATTERY MODULE LINE · AI DIGITAL TWIN" 
                                Foreground="#00D4FF" 
                                FontSize="24" 
                                FontWeight="Bold"/>
-                    <TextBlock Text="Manufacturing Simulation with 10 Movers, 4 Machines, 4 Robots" 
+                    <TextBlock Text="12S module assembly · 10 XTS movers · 4 robot cells · predictive maintenance · SPC · critical-WIP autopilot" 
                                Foreground="#CCCCCC" 
                                FontSize="12"/>
                 </StackPanel>
@@ -670,6 +724,14 @@
                                 TickFrequency="0.1"
                                 IsSnapToTickEnabled="True"/>
                     </StackPanel>
+                    <Border Background="#1A1530" BorderBrush="#6D5BD0" BorderThickness="1" CornerRadius="8" Padding="10,4" Margin="0,0,10,0" VerticalAlignment="Center" DataContext="{Binding Intelligence}">
+                        <StackPanel>
+                            <CheckBox Content="AI autopilot" Foreground="#C4B5FD" FontWeight="SemiBold" IsChecked="{Binding AutopilotEnabled, Mode=TwoWay}"/>
+                            <TextBlock Foreground="#8EA0B4" FontSize="10">
+                                <Run Text="OEE "/><Run Text="{Binding LineOee, Mode=OneWay, StringFormat={}{0:P0}}" Foreground="#E8EEF5"/><Run Text=" · "/><Run Text="{Binding ThroughputText, Mode=OneWay}" Foreground="#E8EEF5"/><Run Text=" · "/><Run Text="{Binding EnergyText, Mode=OneWay}" Foreground="#E8EEF5"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
                     <Button Content="START" Command="{Binding StartCommand}" Style="{StaticResource ButtonStyle}"/>
                     <Button Content="STOP" Command="{Binding StopCommand}" Style="{StaticResource ButtonStyle}" Background="#D83B01"/>
                     <Button Content="RESET" Command="{Binding ResetCommand}" Style="{StaticResource ButtonStyle}" Background="#107C10"/>
@@ -686,7 +748,291 @@
             
             <!-- Left Panel Tabs: XTS + DB Viewer -->
             <TabControl Grid.Column="0" Background="#252526" BorderBrush="#3F3F46" BorderThickness="2" Margin="0,0,5,0">
-                <TabItem Header="XTS Visualization">
+                <!-- ════════════════════════════════════
+                     3D DIGITAL TWIN (Three.js in WebView2, live)
+                ════════════════════════════════════ -->
+                <TabItem Header="3D Digital Twin">
+                    <Grid Background="#0C1016">
+                        <wv2:WebView2 x:Name="TwinWebView" DefaultBackgroundColor="#0C1016"/>
+                        <Border x:Name="TwinStatusBanner" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,10"
+                                Background="#CC0B1118" BorderBrush="#334155" BorderThickness="1" CornerRadius="8" Padding="12,6" IsHitTestVisible="False">
+                            <TextBlock x:Name="TwinStatusText" Text="3D digital twin starting…" Foreground="#CFE3F7" FontSize="12"/>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- ════════════════════════════════════
+                     AI COMMAND CENTER
+                ════════════════════════════════════ -->
+                <TabItem Header="AI Command Center">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="#11161C">
+                        <Grid Margin="12" DataContext="{Binding Intelligence}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- KPI band -->
+                            <Grid Grid.Row="0" Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Style="{StaticResource AiCard}" Margin="0,0,8,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <controls:RingGauge Width="92" Height="92" Value="{Binding LineOee, Mode=OneWay}" Caption="Line OEE" GoodThreshold="0.65" WarnThreshold="0.45" Thickness="9"/>
+                                        <StackPanel Margin="12,4,4,0" VerticalAlignment="Center">
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="AVAILABILITY"/>
+                                            <TextBlock Style="{StaticResource AiValueSmall}" Text="{Binding LineAvailability, Mode=OneWay, StringFormat={}{0:P1}}"/>
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="PERFORMANCE" Margin="0,4,0,0"/>
+                                            <TextBlock Style="{StaticResource AiValueSmall}" Text="{Binding LinePerformance, Mode=OneWay, StringFormat={}{0:P1}}"/>
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="QUALITY" Margin="0,4,0,0"/>
+                                            <TextBlock Style="{StaticResource AiValueSmall}" Text="{Binding LineQuality, Mode=OneWay, StringFormat={}{0:P1}}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="1" Style="{StaticResource AiCard}" Margin="0,0,8,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <TextBlock Style="{StaticResource AiLabel}" Text="OUTPUT"/>
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource AiValue}" Text="{Binding ThroughputText, Mode=OneWay}"/>
+                                            <TextBlock Foreground="#8EA0B4" FontSize="11" Margin="8,0,0,4" VerticalAlignment="Bottom" Text="{Binding ForecastText, Mode=OneWay}"/>
+                                        </StackPanel>
+                                        <controls:TrendChart Grid.Row="2" Height="44" Margin="0,6,0,0" Values="{Binding ThroughputHistory, Mode=OneWay}" Stroke="#36D399" Minimum="0" ValueFormat="0.0"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="2" Style="{StaticResource AiCard}" Margin="0,0,8,0">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource AiLabel}" Text="FLOW · WIP / CAP"/>
+                                        <TextBlock Style="{StaticResource AiValue}" Text="{Binding WipText, Mode=OneWay}"/>
+                                        <TextBlock Foreground="#8EA0B4" FontSize="11" Text="{Binding LittlesLawText, Mode=OneWay}"/>
+                                        <TextBlock Foreground="#8EA0B4" FontSize="11" Text="{Binding LeadTimeText, Mode=OneWay, StringFormat='Lead time {0}'}"/>
+                                        <TextBlock Foreground="#FBBF24" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" Text="{Binding BottleneckText, Mode=OneWay}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="3" Style="{StaticResource AiCard}" Margin="0,0,8,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <TextBlock Style="{StaticResource AiLabel}" Text="ENERGY"/>
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource AiValue}" Text="{Binding EnergyText, Mode=OneWay}"/>
+                                            <TextBlock Foreground="#8EA0B4" FontSize="11" Margin="8,0,0,4" VerticalAlignment="Bottom" Text="{Binding PowerText, Mode=OneWay}"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Row="2" Foreground="#8EA0B4" FontSize="10" Text="{Binding Co2Text, Mode=OneWay}"/>
+                                        <controls:TrendChart Grid.Row="3" Height="34" Margin="0,4,0,0" Values="{Binding PowerHistory, Mode=OneWay}" Stroke="#3FB6FF" ValueFormat="0.0' kW'"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="4" Style="{StaticResource AiCard}">
+                                    <StackPanel>
+                                        <TextBlock Style="{StaticResource AiLabel}" Text="FIRST-PASS YIELD"/>
+                                        <TextBlock Style="{StaticResource AiValue}" Text="{Binding YieldText, Mode=OneWay}"/>
+                                        <TextBlock Foreground="#8EA0B4" FontSize="11" Text="{Binding GoodBadText, Mode=OneWay}"/>
+                                        <TextBlock Foreground="#8EA0B4" FontSize="11" Margin="0,4,0,0" Text="{Binding SimTimeText, Mode=OneWay}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="380"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Machine health cards (digital twin + PdM + SPC) -->
+                                <ItemsControl Grid.Column="0" ItemsSource="{Binding Machines, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource AiCard}" Margin="0,0,8,8">
+                                                <StackPanel>
+                                                    <DockPanel>
+                                                        <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                                            <Border Style="{StaticResource AiTag}" Background="#F59E0B" Visibility="{Binding IsBottleneck, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="CONSTRAINT" Foreground="#111" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                            <Border Style="{StaticResource AiTag}" Background="#FF4D6D" Visibility="{Binding AnomalyFlag, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="ANOMALY" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                            <Border Style="{StaticResource AiTag}" Background="#FB923C" Visibility="{Binding SpcAlarm, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="SPC" Foreground="#111" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                            <Border Style="{StaticResource AiTag}" Background="#2F7BFF" Visibility="{Binding InMaintenance, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                                <TextBlock Text="MAINTENANCE" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                                                            </Border>
+                                                        </WrapPanel>
+                                                        <TextBlock Text="{Binding Title, Mode=OneWay}" Foreground="#E8EEF5" FontSize="14" FontWeight="SemiBold"/>
+                                                    </DockPanel>
+                                                    <TextBlock Text="{Binding FailureMode, Mode=OneWay, StringFormat='Watched failure mode: {0}'}" Foreground="#8EA0B4" FontSize="10" Margin="0,2,0,6"/>
+
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <controls:RingGauge Width="74" Height="74" Value="{Binding Health, Mode=OneWay}" Caption="health" GoodThreshold="0.7" WarnThreshold="0.45"/>
+                                                        <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                            <TextBlock Foreground="#E8EEF5" FontSize="12"><Run Text="RUL " Foreground="#8EA0B4"/><Run Text="{Binding RulText, Mode=OneWay}"/></TextBlock>
+                                                            <TextBlock FontSize="12" Foreground="{Binding AnomalyColor, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}" Text="{Binding AnomalyText, Mode=OneWay}"/>
+                                                            <TextBlock Foreground="#8EA0B4" FontSize="10" Text="{Binding TrueHealthText, Mode=OneWay}"/>
+                                                            <TextBlock Foreground="#8EA0B4" FontSize="10" Text="{Binding Activity, Mode=OneWay, StringFormat='State: {0}'}"/>
+                                                            <TextBlock Foreground="#8EA0B4" FontSize="10" Text="{Binding MaintenanceText, Mode=OneWay}"/>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <Grid Margin="0,8,0,0">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                                            <TextBlock Style="{StaticResource AiLabel}" Text="{Binding PrimaryName, Mode=OneWay}"/>
+                                                            <TextBlock Foreground="#E8EEF5" FontSize="11" Text="{Binding PrimaryText, Mode=OneWay}"/>
+                                                            <controls:TrendChart Height="38" Values="{Binding PrimaryHistory, Mode=OneWay}" Stroke="#A78BFA" FillArea="False" ShowLastValue="False"
+                                                                                 CenterLine="{Binding PrimaryHealthy, Mode=OneWay}" UpperSpecLimit="{Binding PrimaryAtFailure, Mode=OneWay}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Margin="0,0,6,0">
+                                                            <TextBlock Style="{StaticResource AiLabel}" Text="TEMPERATURE"/>
+                                                            <TextBlock Foreground="#E8EEF5" FontSize="11" Text="{Binding TemperatureText, Mode=OneWay}"/>
+                                                            <controls:TrendChart Height="38" Values="{Binding TemperatureHistory, Mode=OneWay}" Stroke="#FB923C" FillArea="False" ShowLastValue="False"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Style="{StaticResource AiLabel}" Text="VIBRATION"/>
+                                                            <TextBlock Foreground="#E8EEF5" FontSize="11" Text="{Binding VibrationText, Mode=OneWay}"/>
+                                                            <controls:TrendChart Height="38" Values="{Binding VibrationHistory, Mode=OneWay}" Stroke="#38BDF8" FillArea="False" ShowLastValue="False"/>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <TextBlock Style="{StaticResource AiLabel}" Margin="0,8,0,0" Text="{Binding SpcTitle, Mode=OneWay}"/>
+                                                    <controls:TrendChart Height="70" Values="{Binding SpcValues, Mode=OneWay}" Markers="{Binding SpcMarkers, Mode=OneWay}" Stroke="#E8EEF5" FillArea="False"
+                                                                         CenterLine="{Binding SpcCenter, Mode=OneWay}" UpperControlLimit="{Binding SpcUcl, Mode=OneWay}" LowerControlLimit="{Binding SpcLcl, Mode=OneWay}"
+                                                                         UpperSpecLimit="{Binding SpcUsl, Mode=OneWay}" LowerSpecLimit="{Binding SpcLsl, Mode=OneWay}" ValueFormat="0.###"/>
+                                                    <TextBlock Foreground="#8EA0B4" FontSize="10" TextWrapping="Wrap" Text="{Binding SpcText, Mode=OneWay}"/>
+
+                                                    <TextBlock Foreground="#CFE3F7" FontSize="11" Margin="0,8,0,0" Text="{Binding OeeText, Mode=OneWay, StringFormat='OEE  {0}'}"/>
+                                                    <TextBlock Foreground="#8EA0B4" FontSize="10" Text="{Binding LossText, Mode=OneWay}"/>
+                                                    <TextBlock Foreground="#8EA0B4" FontSize="10" Text="{Binding BottleneckText, Mode=OneWay}"/>
+                                                    <TextBlock Foreground="#8EA0B4" FontSize="10" Text="{Binding RobotText, Mode=OneWay}"/>
+                                                    <TextBlock Foreground="#FF6B6B" FontSize="10" FontWeight="SemiBold" TextWrapping="Wrap"
+                                                               Visibility="{Binding HasInjectedFault, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                               Text="{Binding InjectedFault, Mode=OneWay, StringFormat='What-if active: {0}'}"/>
+                                                    <DockPanel Margin="0,8,0,0">
+                                                        <Button DockPanel.Dock="Left" Content="Schedule maintenance" Style="{StaticResource AiButton}"
+                                                                Command="{Binding DataContext.RequestMaintenanceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <TextBlock Foreground="#93C5FD" FontSize="10" Margin="8,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding ActionStatus, Mode=OneWay}"/>
+                                                    </DockPanel>
+                                                    <TextBlock Foreground="#64748B" FontSize="9" Margin="0,4,0,0" TextWrapping="Wrap" Text="{Binding RecommendedAction, Mode=OneWay, StringFormat='Procedure: {0}'}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Right: autopilot, what-if, copilot, insights, decision log -->
+                                <StackPanel Grid.Column="1">
+                                    <Border Style="{StaticResource AiCard}" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="AI AUTOPILOT"/>
+                                            <CheckBox Content="Hand release + predictive maintenance to the AI" Foreground="#E8EEF5" Margin="0,4,0,2"
+                                                      IsChecked="{Binding AutopilotEnabled, Mode=TwoWay}"/>
+                                            <TextBlock Foreground="#A78BFA" FontSize="11" TextWrapping="Wrap" Text="{Binding AutopilotStatusText, Mode=OneWay}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource AiCard}" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="WHAT-IF · FAULT INJECTION"/>
+                                            <ComboBox Margin="0,4,0,4" Style="{StaticResource DarkComboBoxStyle}" ItemsSource="{Binding FaultScenarios, Mode=OneWay}" SelectedItem="{Binding SelectedFault, Mode=TwoWay}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Inject fault" Style="{StaticResource AiButton}" Background="#7F1D1D" Command="{Binding InjectFaultCommand}"/>
+                                                <Button Content="Clear" Style="{StaticResource AiButton}" Margin="6,0,0,0" Command="{Binding ClearFaultsCommand}"/>
+                                            </StackPanel>
+                                            <TextBlock Foreground="#FCA5A5" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" Text="{Binding WhatIfStatus, Mode=OneWay}"/>
+                                            <TextBlock Foreground="#8EA0B4" FontSize="10" TextWrapping="Wrap" Text="{Binding ActiveFaultsText, Mode=OneWay}"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource AiCard}" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="COPILOT"/>
+                                            <CheckBox Content="Use Claude" Foreground="#E8EEF5" Margin="0,4,0,0" IsChecked="{Binding UseClaude, Mode=TwoWay}"/>
+                                            <TextBlock Foreground="#8EA0B4" FontSize="10" TextWrapping="Wrap" Text="{Binding ClaudeStatusText, Mode=OneWay}"/>
+                                            <DockPanel Margin="0,6,0,0">
+                                                <Button DockPanel.Dock="Right" Content="Ask" Style="{StaticResource AiButton}" Margin="6,0,0,0" Command="{Binding AskCopilotCommand}" IsDefault="False"/>
+                                                <TextBox Style="{StaticResource DarkTextBoxStyle}" Text="{Binding CopilotQuestion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Padding="4,3"/>
+                                            </DockPanel>
+                                            <ItemsControl ItemsSource="{Binding SuggestedQuestions, Mode=OneWay}" Margin="0,6,0,0">
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="{Binding}" Style="{StaticResource AiChip}"
+                                                                Command="{Binding DataContext.AskSuggestedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Foreground="#A78BFA" FontSize="10" Margin="0,6,0,2" Text="{Binding CopilotSource, Mode=OneWay}"/>
+                                            <TextBox Style="{StaticResource DarkTextBoxStyle}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="260"
+                                                     VerticalScrollBarVisibility="Auto" Text="{Binding CopilotAnswer, Mode=OneWay}" Padding="6,4" FontSize="11"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource AiCard}" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="COPILOT INSIGHTS"/>
+                                            <ItemsControl ItemsSource="{Binding Insights, Mode=OneWay}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border BorderThickness="3,0,0,0" BorderBrush="{Binding SeverityColor, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}"
+                                                                Background="#0FFFFFFF" Margin="0,4,0,0" Padding="8,5" CornerRadius="0,6,6,0">
+                                                            <StackPanel>
+                                                                <TextBlock FontSize="9" FontWeight="Bold" Foreground="{Binding SeverityColor, Mode=OneWay, Converter={StaticResource StringToBrushConverter}}">
+                                                                    <Run Text="{Binding Severity, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding Category, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding ConfidenceText, Mode=OneWay}"/>
+                                                                </TextBlock>
+                                                                <TextBlock Foreground="#E8EEF5" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding Title, Mode=OneWay}"/>
+                                                                <TextBlock Foreground="#8EA0B4" FontSize="10" TextWrapping="Wrap" Text="{Binding Evidence, Mode=OneWay}"/>
+                                                                <TextBlock Foreground="#B5CEA8" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" Text="{Binding Recommendation, Mode=OneWay, StringFormat='→ {0}'}"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource AiCard}">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource AiLabel}" Text="AUTOPILOT DECISION LOG"/>
+                                            <ItemsControl ItemsSource="{Binding Decisions, Mode=OneWay}" MaxHeight="320">
+                                                <ItemsControl.Template>
+                                                    <ControlTemplate TargetType="ItemsControl">
+                                                        <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsPresenter/></ScrollViewer>
+                                                    </ControlTemplate>
+                                                </ItemsControl.Template>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Margin="0,4,0,0">
+                                                            <TextBlock FontSize="11" Foreground="#E8EEF5" TextWrapping="Wrap">
+                                                                <Run Text="{Binding TimeText, Mode=OneWay}" Foreground="#64748B"/><Run Text="  "/><Run Text="{Binding Category, Mode=OneWay}" Foreground="#A78BFA"/><Run Text="  "/><Run Text="{Binding Action, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                            </TextBlock>
+                                                            <TextBlock FontSize="10" Foreground="#8EA0B4" TextWrapping="Wrap" Text="{Binding Rationale, Mode=OneWay}"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="XTS Visualization (2D)">
                     <Border Background="#252526" BorderBrush="#3F3F46" BorderThickness="0" CornerRadius="5" Margin="0">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Auto"
@@ -828,6 +1174,7 @@
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
                                         <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
                                         <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <TextBlock Text="{Binding MaintenanceText, Mode=OneWay}" Foreground="#93C5FD" FontSize="10"/>
                                         <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
                                             <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
                                             <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
@@ -846,6 +1193,7 @@
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
                                         <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
                                         <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <TextBlock Text="{Binding MaintenanceText, Mode=OneWay}" Foreground="#93C5FD" FontSize="10"/>
                                         <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
                                             <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
                                             <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
@@ -864,6 +1212,7 @@
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
                                         <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
                                         <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <TextBlock Text="{Binding MaintenanceText, Mode=OneWay}" Foreground="#93C5FD" FontSize="10"/>
                                         <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
                                             <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
                                             <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
@@ -882,6 +1231,7 @@
                                         <TextBlock Text="{Binding SequencerState, Mode=OneWay, StringFormat='PLC: {0}'}" Foreground="#FFD700" FontSize="10"/>
                                         <TextBlock Text="{Binding CurrentPartId, Mode=OneWay, StringFormat='Part: {0}'}" Foreground="#CCCCCC" FontSize="10"/>
                                         <TextBlock Text="{Binding IsIndexing, Mode=OneWay, StringFormat='Indexing: {0}'}" Foreground="#9CDCFE" FontSize="10"/>
+                                        <TextBlock Text="{Binding MaintenanceText, Mode=OneWay}" Foreground="#93C5FD" FontSize="10"/>
                                         <Canvas Width="120" Height="120" HorizontalAlignment="Center" Margin="0,4,0,2">
                                             <Ellipse Width="90" Height="90" Canvas.Left="15" Canvas.Top="15" Stroke="#6A9955" StrokeThickness="2" Fill="#252526"/>
                                             <ItemsControl ItemsSource="{Binding Stations, Mode=OneWay}" Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
@@ -1063,6 +1413,24 @@
                     </TabItem.Header>
                     <ContentPresenter Content="{Binding Machines[3], Mode=OneWay}"
                                       ContentTemplate="{StaticResource MachineDetailTemplate}"/>
+                </TabItem>
+
+                <!-- ════════════════════════════════════
+                     NATIVE 3D (HelixToolkit, no browser runtime)
+                ════════════════════════════════════ -->
+                <TabItem Header="Native 3D (WPF)">
+                    <Grid>
+                        <controls:NativeLineView3D x:Name="NativeView"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="10">
+                            <Button Content="Overview" Tag="overview" Click="OnNativeCameraClick" Style="{StaticResource AiButton}" Margin="4,0,0,0"/>
+                            <Button Content="M0" Tag="m0" Click="OnNativeCameraClick" Style="{StaticResource AiButton}" Margin="4,0,0,0"/>
+                            <Button Content="M1" Tag="m1" Click="OnNativeCameraClick" Style="{StaticResource AiButton}" Margin="4,0,0,0"/>
+                            <Button Content="M2" Tag="m2" Click="OnNativeCameraClick" Style="{StaticResource AiButton}" Margin="4,0,0,0"/>
+                            <Button Content="M3" Tag="m3" Click="OnNativeCameraClick" Style="{StaticResource AiButton}" Margin="4,0,0,0"/>
+                            <Button Content="Top" Tag="top" Click="OnNativeCameraClick" Style="{StaticResource AiButton}" Margin="4,0,0,0"/>
+                            <Button Content="Fly-through tour" Tag="tour" Click="OnNativeCameraClick" Style="{StaticResource AiButton}" Background="#4C1D95" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
                 </TabItem>
 
                 <TabItem Header="DB Tables Viewer">
@@ -1322,7 +1690,7 @@
                                         <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Cyan = Assembled / intermediate stage"/>
                                         <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Green = Good (final pass, exiting)"/>
                                         <TextBlock Foreground="#CCCCCC" FontSize="10" Text="Red = Bad (rejected/fault outcome)"/>
-                                        <TextBlock Foreground="#AAAAAA" FontSize="10" Margin="0,4,0,0" Text="AtLoadStation=waiting at machine interface; Loaded=queued behind upstream mover; AtUnloadStation=waiting for machine output transfer." TextWrapping="Wrap"/>
+                                        <TextBlock Foreground="#AAAAAA" FontSize="10" Margin="0,4,0,0" Text="Movers never overtake: Queued = held by the anti-collision gap. AtLoadStation = docked, robot takes the raw module; AtUnloadStation = docked, receiving a finished module; AtEntry/AtExit = cell-stack load / module unload." TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 

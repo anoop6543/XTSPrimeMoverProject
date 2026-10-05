@@ -16,7 +16,13 @@ namespace XTSPrimeMoverProject.ViewModels
         public string Status => _station.Status.ToString();
         public bool HasPart => _station.CurrentPart != null;
         public bool IsCurrentIndex => _machine.CurrentStationIndex == _station.StationId;
-        public double Progress => _station.ProcessTime > 0 ? (_station.ElapsedTime / _station.ProcessTime) * 100.0 : 0.0;
+        public double Progress => _station.EffectiveProcessTime > 0 ? Math.Min(100.0, _station.ElapsedTime / _station.EffectiveProcessTime * 100.0) : 0.0;
+        public string MeasurementText => _station.LastMeasurement?.Format() ?? "No measurement yet";
+        public bool LastMeasurementOk => _station.LastMeasurement?.InSpec ?? true;
+        public string MeasurementColor => LastMeasurementOk ? "#B5CEA8" : "#FF6B6B";
+        public string SlowdownText => _station.EffectiveProcessTime > _station.ProcessTime * 1.01
+            ? $"cycle ×{_station.EffectiveProcessTime / _station.ProcessTime:F2} (wear)"
+            : string.Empty;
         public string PartId => _station.CurrentPart == null ? "-" : _station.CurrentPart.TrackingNumber;
 
         public double ElapsedSeconds => _station.ElapsedTime;
@@ -148,6 +154,10 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(StepIndicatorText));
             OnPropertyChanged(nameof(EtPtCompactText));
             OnPropertyChanged(nameof(StationCardGlowColor));
+            OnPropertyChanged(nameof(MeasurementText));
+            OnPropertyChanged(nameof(LastMeasurementOk));
+            OnPropertyChanged(nameof(MeasurementColor));
+            OnPropertyChanged(nameof(SlowdownText));
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

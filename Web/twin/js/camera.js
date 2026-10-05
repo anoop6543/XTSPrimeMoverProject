@@ -108,14 +108,14 @@ export const TOURS = {
   },
 
   ai: {
-    duration: 45,
+    duration: 36,
     shot(t, ctx) {
       const m0 = ctx.frame?.machines?.[0];
       const ov = overviewPose();
       const cell = cellPose(0, 1.05, 0.15 + Math.sin(t * 0.12) * 0.25);
       let pose;
       if (t < 4) pose = blendPose(ov, cell, t / 4);
-      else if (t > 40) pose = blendPose(cell, ov, (t - 40) / 5);
+      else if (t > 31) pose = blendPose(cell, ov, (t - 31) / 5);
       else pose = cell;
       return { pose, caption: aiCaption(ctx, m0) };
     }

@@ -201,7 +201,7 @@ class ProcessTool {
     const stroke = this.kind === 'scale' || this.kind === 'scanner' || this.kind === 'camera' || this.kind === 'vision3d' || this.kind === 'laser' || this.kind === 'marker' ? 0.0
       : this.kind === 'probe' || this.kind === 'hipot' ? 0.07 : 0.05;
     this.head.position.y = DIAL_TOP + 0.3 - stroke * smooth(a);
-    this.glowMat.emissiveIntensity = 0.3 + 3.5 * a;
+    this.glowMat.emissiveIntensity = 0.25 + (this.kind === 'camera' || this.kind === 'vision3d' ? 1.6 : 2.4) * a;
 
     if (this.beam) {
       const pulse = this.kind === 'laser' ? 0.75 + 0.25 * Math.sin(this.time * 90 + flicker) : (Math.sin(this.time * 40) > 0 ? 1 : 0.2);
@@ -215,7 +215,7 @@ class ProcessTool {
       if (this.light) this.light.intensity = on * 4 * pulse;
     }
     if (this.patternMat) {
-      this.patternMat.opacity = a * (0.55 + 0.25 * Math.sin(this.time * 12));
+      this.patternMat.opacity = a * (0.3 + 0.12 * Math.sin(this.time * 12));
       this.patternMat.map.offset.x = (this.time * 0.6) % 1;
     }
     if (this.line) {
@@ -439,8 +439,8 @@ export class MachineCell {
 
     // Technician (visible during maintenance)
     this.technician = makeTechnician();
-    this.technician.position.set(-0.75, 0, 0.95);
-    this.technician.rotation.y = -2.4;
+    this.technician.position.set(-0.82, 0, 0.12);
+    this.technician.rotation.y = Math.PI / 2; // beside the cell, facing the opened guard
     this.technician.visible = false;
     this.group.add(this.technician);
 
@@ -509,7 +509,7 @@ export class MachineCell {
     this.curtainMat.emissiveIntensity = maint ? 0.2 : 1.2;
     this.technician.visible = m.maint === 'InProgress';
     if (this.technician.visible) {
-      this.technician.rotation.y = -2.4 + Math.sin(this.time * 1.3) * 0.25;
+      this.technician.rotation.y = Math.PI / 2 + Math.sin(this.time * 1.3) * 0.25;
     }
 
     this.robot.update(robotState, this.robotPoints(), dt);

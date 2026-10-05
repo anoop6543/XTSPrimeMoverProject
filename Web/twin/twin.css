@@ -137,6 +137,7 @@ nav button.accent.active { background: rgba(167, 139, 250, 0.28); }
 .mover-tag.good { color: #bbf7d0; border-color: rgba(54, 211, 153, 0.6); }
 
 body.capture .hud-bottom-right, body.capture .loading { display: none; }
+body.capture .caption { transition: none; }
 .cell-label.compact .row, .cell-label.compact .bar { display: none; }
 .cell-label.compact { min-width: 0; padding: 4px 8px; }
 .cell-label.compact::after { content: attr(data-health); color: var(--muted); font-size: 11px; margin-left: 6px; }

@@ -10,7 +10,9 @@ namespace XTSPrimeMoverProject.ViewModels
 
         public int MoverId => _mover.MoverId;
         public double Position => _mover.Position;
-        public string PositionDeg => $"{_mover.Position:F1}°";
+        public string PositionDeg => $"{_mover.Position:F1}° ({XtsTrackGeometry.ToMeters(_mover.Position):F2} m)";
+        public string VelocityText => $"{XtsTrackGeometry.ToMeters(_mover.Velocity):F2} m/s";
+        public string OdometerText => $"{_mover.OdometerMeters / 1000.0:F3} km";
         public string State => _mover.State.ToString();
         public bool HasPart => _mover.CurrentPart != null;
         public string PartStatus => _mover.CurrentPart?.Status.ToString() ?? "Empty";
@@ -36,11 +38,13 @@ namespace XTSPrimeMoverProject.ViewModels
 
         public string WaitReason => _mover.State switch
         {
-            MoverState.AtLoadStation => $"Waiting at machine interface ({TargetStation})",
-            MoverState.AtUnloadStation => $"Waiting for machine output ({TargetStation})",
-            MoverState.Loaded when HasPart => "Queued behind upstream mover",
-            MoverState.Loaded => "Speed-limited queue spacing",
-            MoverState.Moving => "In transit",
+            MoverState.AtLoadStation => $"Docked at {TargetStation}: robot taking the raw module",
+            MoverState.AtUnloadStation => $"Docked at {TargetStation}: receiving a finished module",
+            MoverState.AtEntryStation => "Docked at entry: cell stack being loaded",
+            MoverState.AtExitStation => "Docked at exit: module being unloaded",
+            MoverState.Queued => "Queued – anti-collision gap to the mover ahead",
+            MoverState.Loaded => $"In transit with module ({VelocityText})",
+            MoverState.Moving => $"Empty carrier in transit ({VelocityText})",
             _ => "Idle"
         };
 
@@ -53,6 +57,8 @@ namespace XTSPrimeMoverProject.ViewModels
         {
             OnPropertyChanged(nameof(Position));
             OnPropertyChanged(nameof(PositionDeg));
+            OnPropertyChanged(nameof(VelocityText));
+            OnPropertyChanged(nameof(OdometerText));
             OnPropertyChanged(nameof(State));
             OnPropertyChanged(nameof(HasPart));
             OnPropertyChanged(nameof(PartStatus));

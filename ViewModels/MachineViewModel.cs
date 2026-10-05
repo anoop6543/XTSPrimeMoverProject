@@ -85,13 +85,21 @@ namespace XTSPrimeMoverProject.ViewModels
             _                             => "Processing cell"
         };
 
-        public string StatusBadgeText => FaultActive ? "FAULT"
+        public string MaintenanceText => _machine.Maintenance == MaintenanceMode.None
+            ? "In production"
+            : $"{(_machine.MaintenanceKind == MaintenanceKind.Breakdown ? "BREAKDOWN" : "Planned maintenance")} – {_machine.Maintenance}{(_machine.Maintenance == MaintenanceMode.InProgress ? $" ({_machine.MaintenanceRemainingSeconds:F0} s)" : " (draining)")}";
+        public bool InMaintenance => _machine.Maintenance != MaintenanceMode.None;
+        public string OutfeedNestText => _machine.OutfeedNest?.TrackingNumber ?? "-";
+
+        public string StatusBadgeText => InMaintenance ? (_machine.MaintenanceKind == MaintenanceKind.Breakdown ? "BREAKDOWN" : "MAINTENANCE")
+            : FaultActive ? "FAULT"
             : IsIndexing   ? "INDEXING"
             : CurrentPartId != "-" ? "RUNNING"
             : SequencerState == "Run" ? "READY"
             : SequencerState;
 
-        public string StatusBadgeColor => FaultActive ? "#D83B01"
+        public string StatusBadgeColor => InMaintenance ? (_machine.MaintenanceKind == MaintenanceKind.Breakdown ? "#D83B01" : "#2F7BFF")
+            : FaultActive ? "#D83B01"
             : IsIndexing   ? "#FFD700"
             : CurrentPartId != "-" ? "#00C875"
             : "#5A5A5E";
@@ -164,6 +172,9 @@ namespace XTSPrimeMoverProject.ViewModels
             OnPropertyChanged(nameof(RuntimeAction));
             OnPropertyChanged(nameof(CurrentStationEtPt));
             OnPropertyChanged(nameof(StatusBadgeText));
+            OnPropertyChanged(nameof(MaintenanceText));
+            OnPropertyChanged(nameof(InMaintenance));
+            OnPropertyChanged(nameof(OutfeedNestText));
             OnPropertyChanged(nameof(StatusBadgeColor));
             OnPropertyChanged(nameof(EfficiencyText));
             OnPropertyChanged(nameof(ActiveStationDescription));

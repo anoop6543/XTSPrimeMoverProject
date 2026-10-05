@@ -5,14 +5,13 @@
 //   &capture=1                     → deterministic frame-by-frame rendering for video export
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 
-import { createMaterials, buildFactory, buildLights } from './factory.js';
+import { createMaterials, buildFactory, buildLights, createFactoryEnvironment } from './factory.js';
 import { buildTrack, MoverFleet, getEntryAnchors, getExitAnchors } from './track.js';
 import { buildCells } from './cells.js';
 import { PartManager, createBatteryModule, applyStage } from './parts.js';
@@ -30,7 +29,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffe
 renderer.setPixelRatio(capture ? 1 : Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.92;
+renderer.toneMappingExposure = 1.0;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -47,8 +46,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0c1016);
 scene.fog = new THREE.Fog(0x0c1016, 12, 30);
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.38;
+scene.environment = pmrem.fromScene(createFactoryEnvironment(), 0.03).texture;
+scene.environmentIntensity = 1.0;
 
 const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.03, 120);
 const start = overviewPose();
